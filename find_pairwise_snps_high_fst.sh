@@ -18,7 +18,7 @@ MIN_FST_VALUE=7
 ### PROCESSING VARIABLES
 POP1=`basename $POP_FILE1 | sed 's/\.txt//g'`
 POP2=`basename $POP_FILE2 | sed 's/\.txt//g'`
-COMPARISON=${POP1}_${POP2}
+COMPARISON=${POP1}-${POP2}
 
 ########################################################################
 ### ECHOING PARAMETERS
