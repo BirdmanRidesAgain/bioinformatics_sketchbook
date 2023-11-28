@@ -25,7 +25,7 @@ done
 echo "$p" > ${PROJECT_NAME}.txt;
 
 
-$JOB=${PROJECT_NAME}_upload_$(date +%s).sh;
+JOB=${PROJECT_NAME}_upload_$(date +%s).sh;
 cat ${PROJECT_NAME}.txt >> $JOB;
 chmod +x $JOB;
 rm ${PROJECT_NAME}.txt;
