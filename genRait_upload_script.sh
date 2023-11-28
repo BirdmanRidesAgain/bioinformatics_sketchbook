@@ -4,9 +4,9 @@
 ########################################################################
 ### SETTING VARIABLES
 WDIR=`pwd`;
-GEN=$WDIR/gen-cli;
 UPLOAD=$1;
 PROJECT_NAME=$2;
+GEN=$WDIR/gen-cli;
 
 ########################################################################
 ### CONFIGURING GENRAIT
