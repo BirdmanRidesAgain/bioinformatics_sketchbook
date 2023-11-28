@@ -1,10 +1,15 @@
 #!/bin/bash
 # Usage: 'bash genRait_upload_script.sh <file_or_directory_to_be_uploaded> <project_name>'
+
+########################################################################
+### SETTING VARIABLES
 WDIR=`pwd`;
 GEN=$WDIR/gen-cli;
 UPLOAD=$1;
 PROJECT_NAME=$2;
 
+########################################################################
+### CONFIGURING GENRAIT
 echo "Configuring GenRait login";
 $GEN config kcollier@reneco.org B\!rdman2023;
 echo "Generating metadata";
@@ -17,11 +22,11 @@ for RUN in $ALLRUNS
 do
 p+="$GEN upload -m $WDIR/runs/$RUN -h -b 32 -p /${PROJECT_NAME}/ ;sleep 2;"$'\n'
 done 
-echo "$p" > job.txt;
+echo "$p" > ${PROJECT_NAME}.txt;
 
 
 $JOB=${PROJECT_NAME}_upload_$(date +%s).sh;
-cat job.txt >> $JOB;
+cat ${PROJECT_NAME}.txt >> $JOB;
 chmod +x $JOB;
-rm job.txt;
+rm ${PROJECT_NAME}.txt;
 sh $JOB;
