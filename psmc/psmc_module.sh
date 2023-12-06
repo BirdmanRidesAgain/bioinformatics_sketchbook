@@ -7,6 +7,7 @@
 INPUT_FQ=$1
 BS_REPS=$2
 PROJECT_NAME=$3
+BS_DIR=${PROJECT_NAME}_bootstraps
 
 ########################################################################
 ### PREPARING INPUT FILE
@@ -22,6 +23,8 @@ fq2psmcfa -q 20 $INPUT_FQ > ${PROJECT_NAME}.psmcfa     ## format assembly to psm
 splitfa ${PROJECT_NAME}.psmcfa > ${PROJECT_NAME}_split.psmcfa       ## split long chromosome sequences to short ones
 psmc -o ${PROJECT_NAME}.psmc ${PROJECT_NAME}.psmcfa     ## output psmc results from un-split psmcfa file
 seq ${BS_REPS} | xargs -i -P 10 echo psmc -o ${PROJECT_NAME}_round-{}.psmc ${PROJECT_NAME}_split.psmcfa | sh        ## use "-P <int>" to set maximum # of processes run at once. -p for interactive mode.
+mkdir ./$BS_DIR
+mv *round-*.psmc $BS_DIR
 
-cat ${PROJECT_NAME}.psmc round-*.psmc ${PROJECT_NAME}_split.psmcfa > ${PROJECT_NAME}_${BS_REPS}-BSreps.psmc
+cat ${PROJECT_NAME}.psmc $BS_DIR/round-*.psmc ${PROJECT_NAME}_split.psmcfa > ${PROJECT_NAME}_${BS_REPS}-BSreps.psmc
 psmc_plot.pl -p -Y 50000 ${PROJECT_NAME}_${BS_REPS}-BSreps_out
