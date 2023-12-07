@@ -26,5 +26,5 @@ seq ${BS_REPS} | xargs -i -P 10 echo psmc -o ${PROJECT_NAME}_round-{}.psmc ${PRO
 mkdir ./$BS_DIR
 mv *round-*.psmc $BS_DIR
 
-cat ${PROJECT_NAME}.psmc $BS_DIR/round-*.psmc ${PROJECT_NAME}_split.psmcfa > ${PROJECT_NAME}_${BS_REPS}-BSreps.psmc
-psmc_plot.pl -p -Y 50000 ${PROJECT_NAME}_${BS_REPS}-BSreps_out
+cat ${PROJECT_NAME}.psmc $BS_DIR/*round-*.psmc ${PROJECT_NAME}_split.psmcfa > ${PROJECT_NAME}_${BS_REPS}-BSreps.psmc
+psmc_plot.pl -p -Y 50000 $PROJECT_NAME ${PROJECT_NAME}_${BS_REPS}-BSreps_out
