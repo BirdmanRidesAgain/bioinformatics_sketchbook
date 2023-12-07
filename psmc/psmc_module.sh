@@ -7,7 +7,7 @@
 INPUT_FQ=$1
 BS_REPS=$2
 PROJECT_NAME=$3
-BS_DIR=${PROJECT_NAME}_bootstraps
+BS_DIR=${PROJECT_NAME}_BSreps
 
 ########################################################################
 ### PREPARING INPUT FILE
