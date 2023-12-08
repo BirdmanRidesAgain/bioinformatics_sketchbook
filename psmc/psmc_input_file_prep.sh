@@ -15,7 +15,7 @@ LOWER_BOUND=10
 UPPER_BOUND=100
 
 
-minimap2 -t $THREADS -x map-ont $ASSEMBLY $READS | samtools sort | samtools view -bS > ${PROJECT_NAME}_ONT_remapped.bam
+minimap2 -t $THREADS -ax map-ont $ASSEMBLY $READS | samtools sort | samtools view -bS > ${PROJECT_NAME}_ONT_remapped.bam
 MAPFILE=${PROJECT_NAME}_ONT_remapped.bam
 bcftools mpileup -Q 30 -q 30 -f $ASSEMBLY $MAPFILE | bcftools call -c | vcfutils.pl vcf2fq -d $LOWER_BOUND -D $UPPER_BOUND | gzip > ${PROJECT_NAME}.fq.gz
 
