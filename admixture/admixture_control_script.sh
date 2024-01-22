@@ -19,8 +19,14 @@ THREADS=40
 PREFIX=`ls $INPUT_BED | sed 's/.bed//g'`
 
 ##################################
-# CREATE DIRECTORIES
+# CREATE TOP-LEVEL DIRECTORY
 ADMIXTURE_OUTDIR=$WD/${PREFIX}_output
+if [ -d "$ADMIXTURE_OUTDIR" ]; then
+    echo "Results already exist in this directory."
+    echo "Moving results to ${ADMIXTURE_OUTDIR}_old."
+    mv ${ADMIXTURE_OUTDIR} ${ADMIXTURE_OUTDIR}_old
+fi
+mkdir ${ADMIXTURE_OUTDIR}
 
 ##################################
 # RUN ADMIXTURE
