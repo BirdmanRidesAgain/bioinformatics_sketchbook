@@ -60,10 +60,12 @@ for i in $(seq 1 $MAX_K); do
     for j in $(seq 1 $NUM_ITERATIONS); do
         echo "      K=$i, replicate $j"
         LOGLIKE=`cat $ADMIXTURE_OUTDIR/K${i}/${PREFIX}.K${i}.rep${j}.log | grep -v "(delta)" | grep Loglikelihood | awk '{print $NF}'`
-        echo $LOGLIKE >> $ADMIXTURE_OUTDIR/loglike.K${i}.txt
+        echo $i $LOGLIKE >> $ADMIXTURE_OUTDIR/loglike.K${i}.txt
     done
     echo "  Finished collecting log likelihood values for K=$i"
 done
+
+cat $ADMIXTURE_OUTDIR/loglike.K*.txt > $ADMIXTURE_OUTDIR/loglike.K1-K${MAX_K}.txt
 echo "Finished collecting log likelihood values for K=1 to K=$MAX_K"
 
 
