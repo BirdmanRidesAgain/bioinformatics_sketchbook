@@ -67,10 +67,14 @@ loglikes <- readr::read_table(file = table_loc) %>%
 # Get summary table
 mean_loglikes <- loglikes %>%
   dplyr::group_by(num_K) %>%
-  dplyr::summarize(mean_ln = mean(ln), std_dev = sd(ln))
+  dplyr::summarize(
+    reps = n(),
+    mean_ln = mean(ln),
+    std_dev = sd(ln))
 
 # Get table of derivatives
-num_K = nrow(mean_loglikes) # used to set the number of loops to run
+num_K <- nrow(mean_loglikes) # used to set the number of loops to run
+
 # Create the 'derivs' tibble. We have to create this one separately, because applying the functions across rows of K values results in NA for K=1
 derivs <- tibble(ln_1st_deriv = NA, absolute_val_ln_2nd_deriv = NA, delta_K = NA) # We manually assign 'NAs' for K=1
 
