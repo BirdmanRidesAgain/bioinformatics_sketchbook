@@ -26,6 +26,18 @@ if (length(ARGS)==0)
   ARGS[3] = "output"
 }
 
+### WE NEED TO ADD THIS AS AN ARGUMENT SOMEHOW? ###
+pop_levels <- c("Yemen",
+               "Israel",
+               "S_Iran",
+               "N_Iran",
+               "W_Uzbekistan",
+               "W_Kazakhstan",
+               "C_Uzbekistan",
+               "C_Kazakhstan",
+               "E_Kazakhstan",
+               "Mongolia")
+
 ###################################################
 ### CHECKS FOR ALL NECESSARY PACKAGES ###
 ###################################################
@@ -38,6 +50,7 @@ library(ggplot2)
 library(dplyr)
 library(readr)
 library(stringr)
+library(mapmixture)
 
 message("All necessary packages loaded.")
 message("")
@@ -48,62 +61,178 @@ message(paste(" Input .fam file:", ARGS[2]))
 message(paste(" Output prefix:", ARGS[3]))
 message("")
 
+###################################################
+### HELPER FUNCTIONS ###
+###################################################
+# K tibbles
+### WRITE DATAFRAME FOR EACH VALUE OF K TO K_LIST ###
+get_long_K_tibble <- function(tibble, k_val, pop_order) {
+  new_list <- vector(mode = 'list', length = k_val)
+  
+  # loop to fill all slots in 'new_list', using get_K_tibble() helper function
+  for (i in 1:k_val) {
+    colname <- str_c("X", i)
+    new_list[[i]] <- get_K_tibble(tibble, eval(colname), i)
+  }
+  
+  # Reshape 'new_list' into long data frame
+  long_K_tibble <- bind_rows(new_list) #%>%
+  long_K_tibble <- long_K_tibble %>%
+    mutate(K = as.factor(K), # Recode <int> K to act like factor to ease plotting later
+           population = factor(as.factor(long_K_tibble$population), # Recode <chr> population as factor
+                               levels = pop_order)) # Relevel <fct> population to correctly order populations in plot
+  return(long_K_tibble)
+}
+get_K_tibble <- function(tibble, colname, k_val) {
+# This function pulls out the values for a single K, along with population/individual columns
+# It then writes them to a new tibble and returns that tibble
+  single_K <- tibble %>%
+    select(population, ind, colname) %>%
+    rename(percent = colname) %>%
+    mutate(K = k_val) %>%
+    select(population, ind, K, percent)
+  return(single_K)
+}
+
+# population tibbles
+get_pop_tibble <- function(tibble, pop_index) {
+# This function creates a new population-specific tibble for the given data frame and index.
+  # It is sensitive to the sorting of your files, so it's not recommended to run outside of iterating through all pops.
+  single_pop <- tibble %>%
+    filter(population == eval(levels(tibble$population)[pop_index]))
+  return(single_pop)
+}
+
+# plotting functions
+get_ind_pop_plots <- function(tibble) {
+  num_pops <- length(levels(tibble$population))
+  pop_list <- vector(mode = 'list', length = num_pops)
+  
+  # write population-specific tibbles to 'pop_list'
+  for (i in 1:num_pops) {
+    pop_list[[i]] <- get_pop_tibble(tibble, i)
+  }
+  
+  # iterate over list to plot all the values
+  pop_plot_list <- vector(mode = 'list', length = num_pops)
+  for (i in 1:num_pops) {
+    pop_plot_list[[i]] <- get_ind_pop_plot(pop_list[[i]], eval(levels(tibble$population)[i]))
+  }
+  
+  # return the list of individual plots
+  return(pop_plot_list)
+}
+get_ind_pop_plot <- function(tibble, pop_string) {
+  #Get title/subtitle strings
+  plot_title <- str_replace(string = pop_string , pattern = "_", replacement = ". ")
+  plot_subtitle <- str_c("K = ", num_K)
+  
+  #Plot:
+  ind_pop_plot <- ggplot(tibble, aes(x = ind, y = percent, fill = K)) +
+    labs(title = plot_title,
+         subtitle = plot_subtitle) +
+    xlab(label = "Individuals") +
+    ylab(label = "Percent identity by K") +
+    geom_col(position = "fill") +
+    scale_y_continuous(labels = scales::percent) + 
+    theme_classic() +
+    ind_pop_theme
+  
+  #Return output plot
+  return(ind_pop_plot)
+}
 
 ###################################################
-### CODE BELOW THIS POINT IS NONFUNCTIONAL ###
+### CODE BELOW THIS POINT IS WIP/TEST-ONLY ###
 ###################################################
+library(tidyverse)
 
-###################################################
-### READ IN Q-FILE ###
-###################################################
+################################################################
+### READ IN AND BIND Q+FAM FILES TO CREATE INITIAL DATAFRAME ###
+################################################################
+### READ IN Q FILE ###
 message("Reading in Q-file:")
 message("")
 
-contiglen <- readr::read_table(file = ARGS[1], col_names = c("","length"))
-prefix <- ARGS[2]
-prefix_plotname <- str_replace(prefix, "_", " ")
-prefix_filename <- str_replace(prefix, " ", "_")
-big_contig_threshold = 1000000
+table_loc <- ARGS[1]
+q_data <- readr::read_table(file = table_loc, col_names = FALSE)
+num_K <- ncol(q_data)
 
-contiglen <- contiglen %>% 
-  select(length) %>%
-  arrange(desc(length)) %>%
-  mutate(name = str_c(row_number())) %>%
-  mutate(name = factor(name, levels = name)) %>%
-  mutate(big_contig = 
-           ifelse(length >= big_contig_threshold, yes = TRUE, no = FALSE))
-
-###################################################
 ### READ IN FAM FILE ###
-###################################################
-
-###################################################
-### PLOT CHROMOSOMER OUTPUT ###
-###################################################
-message("Plotting contig lengths:")
+message("Reading in .fam file:")
 message("")
 
-# Define ggplot2 theme:
-assembly_theme <- theme(
+fam_loc <- "HoubaraFeb23_noUndulata_hiqual_admixture.fam"
+fam_cols <- c("population","ind")
+fam_data <- readr::read_table(file = fam_loc, 
+                              col_names = fam_cols)
+
+### BIND Q AND FAM TIBBLES BY COLUMN ###
+Kpop <- bind_cols(fam_data,q_data) %>%
+  arrange(population)
+
+#########################################################
+### REFORMAT KPOP TO HAVE ONE OBSERVATION PER K VALUE ###
+#########################################################
+### CREATE K_LIST - ONE ELEMENT FOR EVERY VALUE OF K ###
+Kpop <- get_long_K_tibble(Kpop, num_K, pop_levels) # test of new function
+
+
+# Prior code we knew that worked - remove once the script has successfully run
+#for (i in 1:num_K) {
+#  colname <- str_c("X",i)
+#  K_list[[i]] <- get_K_tibble(Kpop, eval(colname), i)
+#}
+#
+#Kpop <- bind_rows(K_list) %>%
+#  mutate(K = as.factor(K), # Recode <int> K to act like factor
+#         population = factor(as.factor(Kpop$population), # Recode and relevel <chr> population as factor
+#                             levels = pop_levels))
+
+###################################################
+### PLOT STACKED BAR OUTPUT ###
+###################################################
+# Set themes
+ind_pop_theme <- theme(
+  title = element_text(size = 18, face = "bold"),
+  axis.title.x = element_text(size = 16),
+  axis.title.y = element_text(size = 16))
+
+mass_pop_theme <- theme(
   title = element_text(size = 18, face = "bold"),
   axis.title.x = element_text(size = 16),
   axis.title.y = element_text(size = 16),
-  legend.position = "none"
-  #scale_x_continuous(n.breaks = 10)
-  # scale_y_continuous()
-)
+  legend.position = "none")
 
-# Plot the item
-plot1 <- ggplot(contiglen, aes(x = name, y = length, fill = big_contig)) +
-  geom_col(color = "black") +
-  geom_hline(yintercept = big_contig_threshold, color = "red", linewidth = 1) +
-  labs(title = str_c(prefix_plotname," contig lengths in descending order")) +
-  xlab("Contig name") +
-  ylab("Contig lenth (bp)") +
-  theme(legend.position = "none") +
+### Get list of all 
+test_list <- get_pop_tibbles(Kpop)
+test_list
+test_list[[1]]
+
+# Prior code we know worked - remove once the script has run successfully
+#num_pops <- length(levels(Kpop$population))
+#pop_list <- vector(mode = 'list', length = num_pops)
+#
+#for (i in 1:num_pops) {
+#  pop_list[[i]] <- get_pop_tibble(Kpop, i)
+#}
+#
+## iterate over list to plot all the values
+#pop_plot_list <- vector(mode = 'list', length = num_pops)
+#for (i in 1:num_pops) {
+#  pop_plot_list[[i]] <- get_ind_pop_plot(pop_list[[i]], eval(levels(Kpop$population)[i]))
+#}
+
+### OUTPUT A PLOT FOR ALL POPULATIONS ###
+ggplot(Kpop, aes(x = ind, y = percent, fill = K)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
   theme_classic() +
-  assembly_theme
-plot1
+  mass_pop_theme
+
+
+
+
 ###################################################
 ### SAVE PLOT TO LOCAL FILESYSTEM ###
 ###################################################
@@ -117,3 +246,5 @@ ggsave(
   dpi = 300,
 )
 message("Program end.")
+
+
