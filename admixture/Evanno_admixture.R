@@ -61,7 +61,6 @@ if (length(ARGS)==0)
   message("Reading in log likelihood file:")
   message("")
   
-  table_loc <- "loglike.K1-K9.txt"
   #q_cols <- c("K1","K2")
   loglikes <- readr::read_table(file = table_loc) %>%
     mutate(ln = log(abs(log_likelihood)) * -1)
