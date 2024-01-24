@@ -17,11 +17,17 @@ ARGS <- commandArgs(trailingOnly = TRUE)
 # If no argument is supplied, return error:
 if (length(ARGS)==0)
 {
-  stop("Usage: ./visualize_contig_lengths.R <input.Q> <input.fam> <output_prefix>", call. = FALSE)
+  stop("Usage: ./visualize_contig_lengths.R <input.Q> <input.fam> <pop_order.txt> <output_prefix>", call. = FALSE)
 } else if(length(ARGS)==1)
 {
-  message("No .fam file was provided. All individuals will be treated as one population.")
+  message("No .fam file was provided.")
+  stop("Usage: ./visualize_contig_lengths.R <input.Q> <input.fam> <pop_order.txt> <output_prefix>", call. = FALSE)
 } else if(length(ARGS)==2)
+{
+  message("No pop_order.txt was provided. Individuals will be plotted in the same order as they appear in the .fam file.")
+  message("Individuals will be plotted in the same order as they appear in the .fam file.")
+    ARGS[3] = "output"
+} else if(length(ARGS)==3)
 {
   ARGS[3] = "output"
 }
@@ -41,24 +47,22 @@ pop_levels <- c("Yemen",
 ###################################################
 ### CHECKS FOR ALL NECESSARY PACKAGES ###
 ###################################################
-# Check if tidyverse is installed. Install if it is not present.
-#if (!requireNamespace("tidyverse", quietly = FALSE))
-#{
-#  install.packages("tidyverse")
-#}
 library(ggplot2)
 library(dplyr)
 library(readr)
 library(stringr)
-library(mapmixture)
+library(patchwork)
 
 message("All necessary packages loaded.")
 message("")
 
 message("Parameters interpreted as:")
-message(paste(" Input Q-file:", ARGS[1]))
-message(paste(" Input .fam file:", ARGS[2]))
-message(paste(" Output prefix:", ARGS[3]))
+table_loc <- ARGS[1]
+message(paste(" Input Q-file:", table_loc))
+fam_loc <- ARGS[2]
+message(paste(" Input .fam file:", fam_loc))
+output_prefix <- ARGS[3]
+message(paste(" Output prefix:", output_prefix))
 message("")
 
 ###################################################
@@ -76,13 +80,16 @@ get_long_K_tibble <- function(tibble, k_val, pop_order) {
   }
   
   # Reshape 'new_list' into long data frame
-  long_K_tibble <- bind_rows(new_list) #%>%
+  long_K_tibble <- bind_rows(new_list)
+  
+  # Mutate/reformat columns as factors
   long_K_tibble <- long_K_tibble %>%
-    mutate(K = as.factor(K), # Recode <int> K to act like factor to ease plotting later
-           population = factor(as.factor(long_K_tibble$population), # Recode <chr> population as factor
+    mutate(K = factor(as.factor(long_K_tibble$K), levels = seq(from = num_K, to = 1, by = -1)), # recode and relevel K to act like a factor
+      population = factor(as.factor(long_K_tibble$population), # Recode <chr> population as factor
                                levels = pop_order)) # Relevel <fct> population to correctly order populations in plot
   return(long_K_tibble)
 }
+
 get_K_tibble <- function(tibble, colname, k_val) {
 # This function pulls out the values for a single K, along with population/individual columns
 # It then writes them to a new tibble and returns that tibble
@@ -104,7 +111,7 @@ get_pop_tibble <- function(tibble, pop_index) {
 }
 
 # plotting functions
-get_ind_pop_plots <- function(tibble) {
+get_pop_plots <- function(tibble, type_of_plot) {
   num_pops <- length(levels(tibble$population))
   pop_list <- vector(mode = 'list', length = num_pops)
   
@@ -115,16 +122,33 @@ get_ind_pop_plots <- function(tibble) {
   
   # iterate over list to plot all the values
   pop_plot_list <- vector(mode = 'list', length = num_pops)
-  for (i in 1:num_pops) {
-    pop_plot_list[[i]] <- get_ind_pop_plot(pop_list[[i]], eval(levels(tibble$population)[i]))
-  }
   
+  for (i in 1:num_pops) {
+    if (type_of_plot == "ind") {
+      pop_plot_list[[i]] <- get_ind_pop_plot(pop_list[[i]], eval(levels(tibble$population)[i]))
+    } else if (type_of_plot == "mass") {
+      pop_plot_list[[i]] <- get_mass_pop_plot(pop_list[[i]], eval(levels(tibble$population)[i]))
+    } else {
+      message("Cannot determine if the plot type is \"ind\" or \"mass\". Reverting to \"ind\".")
+      pop_plot_list[[i]] <- get_ind_pop_plot(pop_list[[i]], eval(levels(tibble$population)[i]))
+    }
+  }
+
   # return the list of individual plots
   return(pop_plot_list)
 }
+
 get_ind_pop_plot <- function(tibble, pop_string) {
+  
+  #Define theme
+  ind_pop_theme <- theme(
+    title = element_text(size = 18, face = "bold"),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16),
+    axis.text.x = element_text(angle = 45, vjust = 1.0, hjust = 1.0))
+  
   #Get title/subtitle strings
-  plot_title <- str_replace(string = pop_string , pattern = "_", replacement = ". ")
+  plot_title <- str_replace(string = pop_string, pattern = "_", replacement = ". ")
   plot_subtitle <- str_c("K = ", num_K)
   
   #Plot:
@@ -141,11 +165,33 @@ get_ind_pop_plot <- function(tibble, pop_string) {
   #Return output plot
   return(ind_pop_plot)
 }
-
-###################################################
-### CODE BELOW THIS POINT IS WIP/TEST-ONLY ###
-###################################################
-library(tidyverse)
+  
+get_mass_pop_plot <- function(tibble, pop_string) {
+  # Identical to 'get_ind_pop_plot', except 'mass_pop_theme' is used and no subtitle is included
+  # Define theme:
+  mass_pop_theme <- theme(
+    title = element_text(size = 18, face = "bold"),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16),
+    axis.text.x = element_text(angle = 45, vjust = 1.0, hjust = 1.0),
+    legend.position = "none")
+  
+  # Get title string
+  #plot_title <- str_replace(string = pop_string, pattern = "_", replacement = ". ")
+  # Plot:
+  mass_pop_plot <- ggplot(tibble, aes(x = ind, y = percent, fill = K)) +
+    #labs(title = plot_title) +
+    xlab(label = "") +
+    ylab(label = "") +
+    geom_col(position = "fill") +
+    scale_y_continuous(labels = scales::percent) + 
+    theme_classic() + 
+    facet_grid(~population) +
+    mass_pop_theme
+  
+  #Return output plot
+  return(mass_pop_plot)
+}
 
 ################################################################
 ### READ IN AND BIND Q+FAM FILES TO CREATE INITIAL DATAFRAME ###
@@ -154,7 +200,6 @@ library(tidyverse)
 message("Reading in Q-file:")
 message("")
 
-table_loc <- ARGS[1]
 q_data <- readr::read_table(file = table_loc, col_names = FALSE)
 num_K <- ncol(q_data)
 
@@ -162,89 +207,87 @@ num_K <- ncol(q_data)
 message("Reading in .fam file:")
 message("")
 
-fam_loc <- "HoubaraFeb23_noUndulata_hiqual_admixture.fam"
 fam_cols <- c("population","ind")
 fam_data <- readr::read_table(file = fam_loc, 
                               col_names = fam_cols)
 
 ### BIND Q AND FAM TIBBLES BY COLUMN ###
-Kpop <- bind_cols(fam_data,q_data) %>%
+Kpop <- bind_cols(fam_data, q_data) %>%
   arrange(population)
 
 #########################################################
 ### REFORMAT KPOP TO HAVE ONE OBSERVATION PER K VALUE ###
 #########################################################
 ### CREATE K_LIST - ONE ELEMENT FOR EVERY VALUE OF K ###
-Kpop <- get_long_K_tibble(Kpop, num_K, pop_levels) # test of new function
-
-
-# Prior code we knew that worked - remove once the script has successfully run
-#for (i in 1:num_K) {
-#  colname <- str_c("X",i)
-#  K_list[[i]] <- get_K_tibble(Kpop, eval(colname), i)
-#}
-#
-#Kpop <- bind_rows(K_list) %>%
-#  mutate(K = as.factor(K), # Recode <int> K to act like factor
-#         population = factor(as.factor(Kpop$population), # Recode and relevel <chr> population as factor
-#                             levels = pop_levels))
+Kpop <- get_long_K_tibble(Kpop, num_K, pop_levels)
 
 ###################################################
 ### PLOT STACKED BAR OUTPUT ###
 ###################################################
-# Set themes
-ind_pop_theme <- theme(
-  title = element_text(size = 18, face = "bold"),
-  axis.title.x = element_text(size = 16),
-  axis.title.y = element_text(size = 16))
+### Get list of all individual plots
+ind_pop_list <- vector(mode = 'list', length = num_pops)
+ind_pop_list <- get_pop_plots(Kpop, "ind")
 
-mass_pop_theme <- theme(
-  title = element_text(size = 18, face = "bold"),
-  axis.title.x = element_text(size = 16),
-  axis.title.y = element_text(size = 16),
-  legend.position = "none")
+###### SECTION BELOW IS HARDCODED: NEEDS TO BE FIXED 
+### Patchwork mass plot:
 
-### Get list of all 
-test_list <- get_pop_tibbles(Kpop)
-test_list
-test_list[[1]]
+### Get list of all mass plots
+mass_pop_list <- vector(mode = 'list', length = num_pops)
+mass_pop_list <- get_pop_plots(Kpop, "mass")
+mass_pop_list[[2]]
 
-# Prior code we know worked - remove once the script has run successfully
-#num_pops <- length(levels(Kpop$population))
-#pop_list <- vector(mode = 'list', length = num_pops)
-#
-#for (i in 1:num_pops) {
-#  pop_list[[i]] <- get_pop_tibble(Kpop, i)
-#}
-#
-## iterate over list to plot all the values
-#pop_plot_list <- vector(mode = 'list', length = num_pops)
-#for (i in 1:num_pops) {
-#  pop_plot_list[[i]] <- get_ind_pop_plot(pop_list[[i]], eval(levels(Kpop$population)[i]))
-#}
 
 ### OUTPUT A PLOT FOR ALL POPULATIONS ###
-ggplot(Kpop, aes(x = ind, y = percent, fill = K)) +
-  geom_col(position = "fill") +
-  scale_y_continuous(labels = scales::percent) +
-  theme_classic() +
-  mass_pop_theme
+# 1. PATCHWORK APPROACH:
+  # HARDCODED - FIXME
+patch_plot_title <- str_replace(string = output_prefix, pattern = "_", replacement = " ")
+patch_plot_subtitle <- str_c("Admixture: K = ", num_K)
 
-
+# Generate patchwork plot
+mass_patchwork_plot <-   
+  mass_pop_list[[1]] + 
+  mass_pop_list[[2]] + 
+  mass_pop_list[[3]] + 
+  mass_pop_list[[4]] +
+  mass_pop_list[[5]] +
+  mass_pop_list[[6]] +
+  mass_pop_list[[7]] +
+  mass_pop_list[[8]] +
+  mass_pop_list[[9]] +
+  mass_pop_list[[10]] +
+  plot_annotation(title = patch_plot_title,
+                  subtitle = patch_plot_subtitle,
+                  tag_levels = 'A') & theme(text = element_text(face = "bold", size = 14))
 
 
 ###################################################
-### SAVE PLOT TO LOCAL FILESYSTEM ###
+### SAVE PLOTS TO LOCAL FILESYSTEM ###
 ###################################################
+### Individual plots:
+for (i in 1:num_pops) { 
+  ind_plotname = str_c(pop_levels[i],"_admixture_K",num_K,".pdf")
+  ggsave(
+    filename = ind_plotname,
+    plot = ind_pop_list[[i]],
+    device = "pdf",
+    width = 500,
+    height = 250,
+    units = "mm",
+    dpi = 300
+  )
+}
+### Patchwork mass plot:
+patch_plotname = str_c(output_prefix,"_allpops_admixture_K",num_K,".pdf")
+print(patch_plotname)
 ggsave(
-  str_c(prefix_filename,"_descending_contigs.tiff"),
-  plot = plot1,
-  device = "tiff",
+  filename = patch_plotname,
+  plot = mass_patchwork_plot,
+  device = "pdf",
   width = 500,
   height = 250,
   units = "mm",
-  dpi = 300,
+  dpi = 300
 )
+
+
 message("Program end.")
-
-
