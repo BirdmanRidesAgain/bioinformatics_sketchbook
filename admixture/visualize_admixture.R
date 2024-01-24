@@ -17,6 +17,7 @@ ARGS <- commandArgs(trailingOnly = TRUE)
 # If no argument is supplied, return error:
 if (length(ARGS)==0)
 {
+  message("No .bam file was provided.")
   stop("Usage: ./visualize_contig_lengths.R <input.Q> <input.fam> <pop_order.txt> <output_prefix>", call. = FALSE)
 } else if(length(ARGS)==1)
 {
@@ -24,25 +25,13 @@ if (length(ARGS)==0)
   stop("Usage: ./visualize_contig_lengths.R <input.Q> <input.fam> <pop_order.txt> <output_prefix>", call. = FALSE)
 } else if(length(ARGS)==2)
 {
-  message("No pop_order.txt was provided. Individuals will be plotted in the same order as they appear in the .fam file.")
-  message("Individuals will be plotted in the same order as they appear in the .fam file.")
-    ARGS[3] = "output"
+  message("No pop_order.txt was provided.")
+  stop("Usage: ./visualize_contig_lengths.R <input.Q> <input.fam> <pop_order.txt> <output_prefix>", call. = FALSE)
 } else if(length(ARGS)==3)
 {
-  ARGS[3] = "output"
+  ARGS[4] = "output"
 }
 
-### WE NEED TO ADD THIS AS AN ARGUMENT SOMEHOW? ###
-pop_levels <- c("Yemen",
-               "Israel",
-               "S_Iran",
-               "N_Iran",
-               "W_Uzbekistan",
-               "W_Kazakhstan",
-               "C_Uzbekistan",
-               "C_Kazakhstan",
-               "E_Kazakhstan",
-               "Mongolia")
 
 ###################################################
 ### CHECKS FOR ALL NECESSARY PACKAGES ###
@@ -53,15 +42,14 @@ library(readr)
 library(stringr)
 library(patchwork)
 
-message("All necessary packages loaded.")
-message("")
-
 message("Parameters interpreted as:")
-table_loc <- ARGS[1]
-message(paste(" Input Q-file:", table_loc))
+q_loc <- ARGS[1]
+message(paste(" Input Q-file:", q_loc))
 fam_loc <- ARGS[2]
 message(paste(" Input .fam file:", fam_loc))
-output_prefix <- ARGS[3]
+order_loc <- ARGS[3]
+message(paste(" Input pop_order.txt:", order_loc))
+output_prefix <- ARGS[4]
 message(paste(" Output prefix:", output_prefix))
 message("")
 
@@ -70,7 +58,37 @@ message("")
 ###################################################
 # K tibbles
 ### WRITE DATAFRAME FOR EACH VALUE OF K TO K_LIST ###
+parse_pop_order <- function(order_loc) {
+  message("Reading in population order:")
+  message("")
+  pop_levels_data <- readr::read_table(order_loc, col_names = "population")
+  pop_levels <- pop_levels_data$population
+  return(pop_levels)
+}
+parse_q_and_fam <- function(q_loc, fam_loc) {
+  ### READ IN Q FILE ###
+  message("Reading in Q-file:")
+  message("")
+  
+  q_data <- readr::read_table(file = q_loc, col_names = FALSE)
+  num_K <- ncol(q_data)
+  
+  ### READ IN FAM FILE ###
+  message("Reading in .fam file:")
+  message("")
+  
+  fam_cols <- c("population","ind")
+  fam_data <- readr::read_table(file = fam_loc, 
+                                col_names = fam_cols)
+  
+  ### BIND Q AND FAM TIBBLES BY COLUMN ###
+  Kpop <- bind_cols(fam_data, q_data) %>%
+    arrange(population)
+  return(Kpop)
+}
+  
 get_long_K_tibble <- function(tibble, k_val, pop_order) {
+  ### CREATE K_LIST - ONE ELEMENT FOR EVERY VALUE OF K ###
   new_list <- vector(mode = 'list', length = k_val)
   
   # loop to fill all slots in 'new_list', using get_K_tibble() helper function
@@ -89,7 +107,6 @@ get_long_K_tibble <- function(tibble, k_val, pop_order) {
                                levels = pop_order)) # Relevel <fct> population to correctly order populations in plot
   return(long_K_tibble)
 }
-
 get_K_tibble <- function(tibble, colname, k_val) {
 # This function pulls out the values for a single K, along with population/individual columns
 # It then writes them to a new tibble and returns that tibble
@@ -137,7 +154,6 @@ get_pop_plots <- function(tibble, type_of_plot) {
   # return the list of individual plots
   return(pop_plot_list)
 }
-
 get_ind_pop_plot <- function(tibble, pop_string) {
   
   #Define theme
@@ -165,7 +181,6 @@ get_ind_pop_plot <- function(tibble, pop_string) {
   #Return output plot
   return(ind_pop_plot)
 }
-  
 get_mass_pop_plot <- function(tibble, pop_string) {
   # Identical to 'get_ind_pop_plot', except 'mass_pop_theme' is used and no subtitle is included
   # Define theme:
@@ -193,34 +208,25 @@ get_mass_pop_plot <- function(tibble, pop_string) {
   return(mass_pop_plot)
 }
 
-################################################################
-### READ IN AND BIND Q+FAM FILES TO CREATE INITIAL DATAFRAME ###
-################################################################
-### READ IN Q FILE ###
-message("Reading in Q-file:")
-message("")
+#####################################################################
+### PARSE INPUTS AND BIND Q+FAM FILES TO CREATE INITIAL DATAFRAME ###
+#####################################################################
+pop_levels <- parse_pop_order(order_loc)
+num_pops <- length(pop_levels)
 
-q_data <- readr::read_table(file = table_loc, col_names = FALSE)
-num_K <- ncol(q_data)
-
-### READ IN FAM FILE ###
-message("Reading in .fam file:")
-message("")
-
-fam_cols <- c("population","ind")
-fam_data <- readr::read_table(file = fam_loc, 
-                              col_names = fam_cols)
-
-### BIND Q AND FAM TIBBLES BY COLUMN ###
-Kpop <- bind_cols(fam_data, q_data) %>%
-  arrange(population)
+Kpop1 <- parse_q_and_fam(q_loc, fam_loc)
+num_K <- ncol(Kpop1) -2
 
 #########################################################
 ### REFORMAT KPOP TO HAVE ONE OBSERVATION PER K VALUE ###
 #########################################################
-### CREATE K_LIST - ONE ELEMENT FOR EVERY VALUE OF K ###
-Kpop <- get_long_K_tibble(Kpop, num_K, pop_levels)
-num_pops <- length(levels(Kpop$population))
+Kpop <- get_long_K_tibble(Kpop1, num_K, pop_levels)
+
+
+
+
+
+
 ###################################################
 ### PLOT STACKED BAR OUTPUT ###
 ###################################################
