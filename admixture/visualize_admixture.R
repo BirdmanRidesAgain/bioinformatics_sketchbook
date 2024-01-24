@@ -220,7 +220,7 @@ Kpop <- bind_cols(fam_data, q_data) %>%
 #########################################################
 ### CREATE K_LIST - ONE ELEMENT FOR EVERY VALUE OF K ###
 Kpop <- get_long_K_tibble(Kpop, num_K, pop_levels)
-
+num_pops <- length(levels(Kpop$population))
 ###################################################
 ### PLOT STACKED BAR OUTPUT ###
 ###################################################
@@ -278,7 +278,6 @@ for (i in 1:num_pops) {
 }
 ### Patchwork mass plot:
 patch_plotname = str_c(output_prefix,"_allpops_admixture_K",num_K,".pdf")
-print(patch_plotname)
 ggsave(
   filename = patch_plotname,
   plot = mass_patchwork_plot,
@@ -288,6 +287,5 @@ ggsave(
   units = "mm",
   dpi = 300
 )
-
 
 message("Program end.")
