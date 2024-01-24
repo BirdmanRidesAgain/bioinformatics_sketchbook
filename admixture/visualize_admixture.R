@@ -245,33 +245,28 @@ mass_pop_list[[2]]
 
 ### OUTPUT A PLOT FOR ALL POPULATIONS ###
 # 1. PATCHWORK APPROACH:
-  # HARDCODED - FIXME
 patch_plot_title <- str_replace(string = output_prefix, pattern = "_", replacement = " ")
 patch_plot_subtitle <- str_c("Admixture: K = ", num_K)
 
 # Generate patchwork plot
-mass_patchwork_plot <-   
-  mass_pop_list[[1]] + 
-  mass_pop_list[[2]] + 
-  mass_pop_list[[3]] + 
-  mass_pop_list[[4]] +
-  mass_pop_list[[5]] +
-  mass_pop_list[[6]] +
-  mass_pop_list[[7]] +
-  mass_pop_list[[8]] +
-  mass_pop_list[[9]] +
-  mass_pop_list[[10]] +
+mass_patchwork_plot <- patchwork::wrap_plots(mass_pop_list) +
   plot_annotation(title = patch_plot_title,
                   subtitle = patch_plot_subtitle,
                   tag_levels = 'A') & theme(text = element_text(face = "bold", size = 14))
 
-
 ###################################################
 ### SAVE PLOTS TO LOCAL FILESYSTEM ###
 ###################################################
+out_dir <- str_c("./",output_prefix,"_figures/")
+if (dir.exists(out_dir) == FALSE) {
+  message(str_c("Output directory '",out_dir,"' created"))
+  dir.create(out_dir)
+  }
+
+
 ### Individual plots:
 for (i in 1:num_pops) { 
-  ind_plotname = str_c(pop_levels[i],"_admixture_K",num_K,".pdf")
+  ind_plotname = str_c(out_dir,pop_levels[i],"_admixture_K",num_K,".pdf")
   ggsave(
     filename = ind_plotname,
     plot = ind_pop_list[[i]],
@@ -283,7 +278,7 @@ for (i in 1:num_pops) {
   )
 }
 ### Patchwork mass plot:
-patch_plotname = str_c(output_prefix,"_allpops_admixture_K",num_K,".pdf")
+patch_plotname = str_c(out_dir,output_prefix,"_allpops_admixture_K",num_K,".pdf")
 ggsave(
   filename = patch_plotname,
   plot = mass_patchwork_plot,
@@ -294,4 +289,5 @@ ggsave(
   dpi = 300
 )
 
+message(str_c("Output files written to '", out_dir, "'"))
 message("Program end.")
