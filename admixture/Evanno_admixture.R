@@ -90,7 +90,7 @@ derivs$ln_1st_deriv[num_K] <- NA
 ### CREATE UNIFIED DATA FRAME AND SAVE TO LOCAL DISK ###
 ##########################################################
 mean_loglikes <- bind_cols(mean_loglikes, derivs)  # binds columns and writes back to "mean_loglikes"
-csv_output_name <- stringr::str_c(output_prefix,"_maxK", num_K,".csv")
+csv_output_name <- stringr::str_c(output_prefix,"_maxK", num_K,"_Evanno_stats.csv")
 readr::write_csv(mean_loglikes, file = csv_output_name)
 
 
