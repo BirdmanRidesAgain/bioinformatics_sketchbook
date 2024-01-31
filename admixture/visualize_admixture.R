@@ -308,7 +308,7 @@ mass_tile_plot <- get_mass_pop_plot_tile(tibble = Kpop)
 ###################################################
 ### SAVE PLOTS TO LOCAL FILESYSTEM ###
 ###################################################
-out_dir <- str_c("./",output_prefix,"_figures/")
+out_dir <- str_c("./",output_prefix,"_K",num_K,"_figures/")
 if (dir.exists(out_dir) == FALSE) {
   message(str_c("Output directory '",out_dir,"' created"))
   dir.create(out_dir)
