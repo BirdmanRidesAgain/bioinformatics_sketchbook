@@ -85,12 +85,12 @@ parse_q_and_fam <- function(q_loc, fam_loc) {
   
   ### READ IN FAM FILE ###
   suppressWarnings({
-  message("Reading in .fam file:")
-  message("")
-  
-  fam_cols <- c("population","ind")
-  fam_data <- readr::read_table(file = fam_loc, 
-                                col_names = fam_cols)
+    message("Reading in .fam file:")
+    message("")
+    
+    fam_cols <- c("population","ind")
+    fam_data <- readr::read_table(file = fam_loc, 
+                                  col_names = fam_cols)
   })
   ### BIND Q AND FAM TIBBLES BY COLUMN ###
   Kpop <- bind_cols(fam_data, q_data) %>%
@@ -136,7 +136,7 @@ get_K_tibble <- function(tibble = Kpop, colname, k_val) {
 ### MAIN ###
 ###################################################
 ### PARSE AND WRANGLE DATA ###
-  # get pop_level/label objects. Necessary for formatting Kpop objects.
+# get pop_level/label objects. Necessary for formatting Kpop objects.
 pop_levels <- get_list_from_1_col_txt(order_loc)
 pop_labels <- label_translate(pop_levels)
 
@@ -188,13 +188,19 @@ get_positional_plot <- function(tibble, pos_theme) {
     geom_col(position = "fill") +
     theme_classic() +
     facet_grid(~population, space = "free", scales = "free_x") +
-    pos_theme
+    pos_theme +
+    # Shared theme components:
+    theme(axis.title = element_blank(),
+          axis.line.y = element_blank(),
+          legend.position = "none",
+          plot.margin = margin(r = 30, b = 0, l = 30))
   
   # return output plot
   return(pos_plot)
 }
 
-
+K2 <- get_positional_plot(Kpop_list[[1]], top_theme)
+K2
 ###################################################
 ### PLOT KPOP OBJECTS ###
 ###################################################
@@ -202,64 +208,51 @@ message("Now plotting Kpop objects: ")
 
 ### Define positional themes ###
 # FIXME : these themes can be compressed to remove redundant lines
+
 top_theme <- theme(axis.text = element_blank(),
                    axis.ticks = element_blank(),
                    axis.ticks.length = unit(0, "pt"), #length of tick marks
-                   axis.title = element_blank(),
-                   axis.line.y = element_blank(),
-                   axis.line.x.bottom = element_blank(),
-                   plot.margin = margin(r = 30, b = 0, l = 30, ),
-                   legend.position = "none")
+                   axis.line.x.bottom = element_blank())
 
 mid_theme <- theme(axis.text = element_blank(),
                    axis.ticks = element_blank(),
                    axis.ticks.length = unit(0, "pt"), #length of tick marks
-                   axis.title = element_blank(),
-                   axis.line.y = element_blank(),
                    axis.line.x.bottom = element_blank(),
                    strip.text.x.top = element_blank(),
-                   strip.background.x = element_blank(),
-                   plot.margin = margin(r = 30, b = 0, l = 30, ),
-                   legend.position = "none")
-  
+                   strip.background.x = element_blank())
+
 bottom_theme <- theme(axis.text.y = element_blank(),
                       axis.text.x = element_text(angle = 45, vjust = 1.0, hjust = 1.0),
                       axis.ticks.y = element_blank(),
-                      axis.title = element_blank(),
-                      axis.line.y = element_blank(),
                       strip.text.x.top = element_blank(),
-                      strip.background.x = element_blank(),
-                      plot.margin = margin(r = 30, b = 5, l = 30, ),
-                      legend.position = "none")
+                      strip.background.x = element_blank())
 
-# FIXME : we can un-hard code this to allow for extra populations
+### Plot the first and last population with 'top' and 'bottom' themes
 K2 <- get_positional_plot(Kpop_list[[1]], top_theme)
-K3 <- get_positional_plot(Kpop_list[[2]], mid_theme)
-K4 <- get_positional_plot(Kpop_list[[3]], mid_theme)
-K5 <- get_positional_plot(Kpop_list[[4]], mid_theme)
-K6 <- get_positional_plot(Kpop_list[[5]], mid_theme)
-K7 <- get_positional_plot(Kpop_list[[6]], mid_theme)
-K8 <- get_positional_plot(Kpop_list[[length(Kpop_list)]], bottom_theme)
+KN <- get_positional_plot(Kpop_list[[length(Kpop_list)]], bottom_theme)
 
+### Plot all K values with the 'middle' theme
+Kplot_middle_list <- map(.x = Kpop_list, .f = get_positional_plot, pos_theme = mid_theme)
 
+  # Get the start and end indices of the desired 'middle' plots
+start_middle_index <- 2
+end_middle_index <- length(Kpop_list) - 1
 
-###################################################
-### SAVE PLOTS TO FILESYSTEM ###
-###################################################
-# FIXME : We can clean up this mess.
-output_prefix = "Asian Houbara (NoYemen)"
+# Use patchwork and the subset of the Kplot_middle_list var to stack the plots
+stacked_plot <- wrap_plots(K2 / (Kplot_middle_list)[start_middle_index:end_middle_index] / KN)
 
+  # Set titles:
 stack_plot_title <- str_c(output_prefix)
-stack_plot_subtitle <- str_c("K2 - K8 ", "")
+stack_plot_subtitle <- str_c("K",min_k, " - K",max_k)
 
-stacked_plot <- wrap_plots((((((K2 / K3) / K4) / K5) / K6) / K7) / K8)
 stacked_plot_title <- stacked_plot +
   plot_annotation(title = stack_plot_title,
                   subtitle = stack_plot_subtitle) & 
   theme(title = element_text(face = "bold", size = 14))
 
-# FIXME : put this into a function please
-# Plot version with a title
+###################################################
+### SAVE PLOTS TO FILESYSTEM ###
+###################################################
 filename <- str_replace(str_c(output_prefix, "_K",min_k,"-",max_k, "_stacked_plot.pdf"), " ", "_")
 ggsave(
   filename = filename,
@@ -282,3 +275,6 @@ ggsave(
   units = "mm",
   dpi = 300
 )
+
+message(str_c("Plots written to", getwd()))
+message("Program finished.")
