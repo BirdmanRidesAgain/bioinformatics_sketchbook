@@ -17,7 +17,7 @@ ARGS <- commandArgs(trailingOnly = TRUE)
 # If no argument is supplied, return error:
 if (length(ARGS)==0)
 {
-  message("No .bam file was provided.")
+  message("No .Q file was provided.")
   stop("Usage: ./visualize_contig_lengths.R <input.Q> <input.fam> <pop_order.txt> <output_prefix>", call. = FALSE)
 } else if(length(ARGS)==1)
 {
@@ -34,7 +34,7 @@ if (length(ARGS)==0)
 
 
 ###################################################
-### CHECKS FOR ALL NECESSARY PACKAGES ###
+### LOAD PACKAGES AND DEFINE VARIABLES ###
 ###################################################
 library(tidyverse)
 library(patchwork)
@@ -94,8 +94,9 @@ parse_q_and_fam <- function(q_loc, fam_loc) {
   return(Kpop)
 }
   
-get_long_K_tibble <- function(tibble = Kpop, k_val, pop_order, pop_labels) {
+get_long_K_tibble <- function(tibble = Kpop, pop_order, pop_labels) {
   ### CREATE K_LIST - ONE ELEMENT FOR EVERY VALUE OF K ###
+  k_val <- (ncol(tibble) - 2)
   new_list <- vector(mode = 'list', length = k_val)
   
   # loop to fill all slots in 'new_list', using get_K_tibble() helper function
@@ -136,17 +137,6 @@ get_pop_tibble <- function(tibble = Kpop, pop_index) {
 }
 
 # plotting functions
-get_ind_order <- function(tibble = Kpop) {
-  # This function takes your Kpop tibble and returns a list of individuals sorted by population
-  # The list is a factor, and can be used as the levels argument of the "mass_data_plot"
-  ind_order <- Kpop %>%
-    filter(K == 1) %>% # removes all higher Ks, guaranteeing a single value for each ind
-    arrange(population) %>% # sorts inds by pop. Could probably sort further, if desired
-    pull(ind) %>% # pulls 'ind' column from tibble and converts to a list
-    as_factor() # converts list to factor
-  
-  return(ind_order) # new factor object
-}
 
 get_pop_plots <- function(tibble = Kpop, type_of_plot) {
   num_pops <- length(levels(tibble$population))
@@ -221,6 +211,18 @@ get_mass_pop_plot_patch <- function(tibble = Kpop, pop_string) {
   return(mass_pop_plot)
 }
 
+get_ind_order <- function(tibble = Kpop) {
+  #Helper function for 'mass_pop_plot_tile'
+  # This function takes your Kpop tibble and returns a list of individuals sorted by population
+  # Output serves as the ind_levels argument in that function
+  ind_order <- tibble %>%
+    filter(K == 1) %>% # removes all higher Ks, guaranteeing a single value for each ind
+    arrange(population) %>% # sorts inds by pop. Could probably sort further, if desired
+    pull(ind) %>% # pulls 'ind' column from tibble and converts to a list
+    as_factor() # converts list to factor
+  
+  return(ind_order) # new factor object
+}
 get_mass_pop_plot_tile <- function(tibble = Kpop) {
   # Define theme:
   mass_pop_theme <- theme(
@@ -230,12 +232,14 @@ get_mass_pop_plot_tile <- function(tibble = Kpop) {
     axis.text.x = element_text(angle = 45, vjust = 1.0, hjust = 1.0))
   
   # Get title/subtitle strings
+  num_K <- length(levels(Kpop_list[[1]]$K))
   plot_title <- str_c(output_prefix, " Admixture")
   plot_subtitle <- str_c("K = ", num_K)
   # Get order of individuals
   ind_order <- get_ind_order(tibble)
   # Plot:
   mass_pop_plot <- tibble %>%
+    filter(K == 1) %>%
     mutate(ind = factor(ind, levels = ind_order)) %>%
     # We now begin plotting
     ggplot(aes(x = reorder(ind, population), y = percent, fill = K)) +
