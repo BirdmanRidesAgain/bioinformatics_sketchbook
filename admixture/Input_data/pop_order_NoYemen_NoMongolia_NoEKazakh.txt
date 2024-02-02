@@ -1,8 +1,0 @@
-Israel
-S_Iran
-N_Iran
-W_Uzbekistan
-W_Kazakhstan
-C_Uzbekistan
-C_Kazakhstan
-E_Kazakhstan

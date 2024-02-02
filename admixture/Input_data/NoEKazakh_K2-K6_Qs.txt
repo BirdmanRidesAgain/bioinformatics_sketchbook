@@ -1,5 +1,0 @@
-Input_data/Houbara_Feb23_noUndulata_third_split.K2.rep1.Q
-Input_data/Houbara_Feb23_noUndulata_third_split.K3.rep1.Q
-Input_data/Houbara_Feb23_noUndulata_third_split.K4.rep1.Q
-Input_data/Houbara_Feb23_noUndulata_third_split.K5.rep21.Q
-Input_data/Houbara_Feb23_noUndulata_third_split.K6.rep1.Q
