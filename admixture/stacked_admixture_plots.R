@@ -1,40 +1,69 @@
-# 2 Feb 2024
-# KACollier
-# Create stacked barplot of our AllInds dataset for K2-K9
+#!/usr/bin/env Rscript
 
-# Load libraries
+###################################################
+### INFORMATION ###
+###################################################
+# visualize_stacked_admixture.R
+# KCollier 2 Feb 2024
+
+# This is a command-line-usable script that takes a list of Q scores from Admixture,
+# and uses them to plot all values of K for a single population of animals.
+# Tidyverse and patchwork are dependencies.
+
+###################################################
+### PARSE ARGUMENTS ###
+###################################################
+# Positional arguments
+ARGS <- commandArgs(trailingOnly = TRUE)
+# If no argument is supplied, return error:
+if (length(ARGS)==0)
+{
+  message("No list of Q-files was provided.")
+  stop("Usage: ./visualize_stacked_admixture.R <input_Qs.txt> <input.fam> <pop_order.txt> <output_prefix>", call. = FALSE)
+} else if(length(ARGS)==1)
+{
+  message("No .fam file was provided.")
+  stop("Usage: ./visualize_stacked_admixture.R <input_Qs.txt> <input.fam> <pop_order.txt> <output_prefix>", call. = FALSE)
+} else if(length(ARGS)==2)
+{
+  message("No pop_order.txt was provided.")
+  stop("Usage: ./visualize_stacked_admixture.R <input_Qs.txt> <input.fam> <pop_order.txt> <output_prefix>", call. = FALSE)
+} else if(length(ARGS)==3)
+{
+  ARGS[4] = "output"
+}
+
+###################################################
+### LOAD PACKAGES AND DEFINE VARIABLES ###
+###################################################
+# Dependencies
 library(tidyverse)
 library(patchwork)
 library(rlist)
 
-# Helper functions
-parse_q_and_fam <- function(q_loc, fam_loc) {
-  ### READ IN Q FILE ###
-  message("Reading in Q-file:")
+# Parse arguments
+message("Parameters interpreted as:")
+qs_loc <- ARGS[1]
+message(paste(" Input list of Q-files:", qs_loc))
+fam_loc <- ARGS[2]
+message(paste(" Input .fam file:", fam_loc))
+order_loc <- ARGS[3]
+message(paste(" Input pop_order.txt:", order_loc))
+output_prefix <- ARGS[4]
+message(paste(" Output prefix:", output_prefix))
+message("")
+
+###################################################
+### HELPER FUNCTIONS - NON-PLOTTING ###
+###################################################
+# Parsing functions:
+get_list_from_1_col_txt <- function(list_loc) {
+  message(stringr::str_c("Reading in: ", list_loc))
   message("")
+  list_data <- readr::read_table(list_loc, col_names = "X1")
+  list_data <- as.list(list_data$X1)
   
-  q_data <- readr::read_table(file = q_loc, col_names = FALSE)
-  num_K <- ncol(q_data)
-  
-  ### READ IN FAM FILE ###
-  message("Reading in .fam file:")
-  message("")
-  
-  fam_cols <- c("population","ind")
-  fam_data <- readr::read_table(file = fam_loc, 
-                                col_names = fam_cols)
-  
-  ### BIND Q AND FAM TIBBLES BY COLUMN ###
-  Kpop <- bind_cols(fam_data, q_data) %>%
-    arrange(population)
-  return(Kpop)
-}
-parse_pop_order <- function(order_loc) {
-  message("Reading in population order:")
-  message("")
-  pop_levels_data <- readr::read_table(order_loc, col_names = "population")
-  pop_levels <- pop_levels_data$population
-  return(pop_levels)
+  return(list_data)
 }
 label_translate <- function(level_string) {
   # uses stringr to do basic transformations on population levels to make them nice labels
@@ -46,7 +75,30 @@ label_translate <- function(level_string) {
   
   return(label_string)
 }
+parse_q_and_fam <- function(q_loc, fam_loc) {
+  ### READ IN Q FILE ###
+  message("Reading in Q-file:")
+  message("")
+  
+  q_data <- readr::read_table(file = q_loc, col_names = FALSE)
+  num_K <- ncol(q_data)
+  
+  ### READ IN FAM FILE ###
+  suppressWarnings({
+  message("Reading in .fam file:")
+  message("")
+  
+  fam_cols <- c("population","ind")
+  fam_data <- readr::read_table(file = fam_loc, 
+                                col_names = fam_cols)
+  })
+  ### BIND Q AND FAM TIBBLES BY COLUMN ###
+  Kpop <- bind_cols(fam_data, q_data) %>%
+    arrange(population)
+  return(Kpop)
+}
 
+# Data wrangling functions
 get_long_K_tibble <- function(tibble = Kpop, pop_order, pop_labels) {
   ### CREATE K_LIST - ONE ELEMENT FOR EVERY VALUE OF K ###
   k_val <- (ncol(tibble) - 2)
@@ -80,6 +132,38 @@ get_K_tibble <- function(tibble = Kpop, colname, k_val) {
   return(single_K)
 }
 
+###################################################
+### MAIN ###
+###################################################
+### PARSE AND WRANGLE DATA ###
+  # get pop_level/label objects. Necessary for formatting Kpop objects.
+pop_levels <- get_list_from_1_col_txt(order_loc)
+pop_labels <- label_translate(pop_levels)
+
+
+# Parse input Q files to Kpop objects 
+Kpop_list <- get_list_from_1_col_txt(qs_loc) # get list of all Kpops
+Kpop_list <- map(.x = Kpop_list, .f = parse_q_and_fam, fam_loc = fam_loc)
+Kpop_list <- map(.x = Kpop_list, .f = get_long_K_tibble, pop_order = pop_levels, pop_labels = pop_labels)
+
+# Get min and max K values. This assumes you aren't plotting K=1, because you aren't stupid.
+min_k <- 2 # min_K will always be 2
+max_k <- length(Kpop_list) + 1 # Because K=1 is not plotted, max_k is always 1 higher than the list size.
+
+# save all Kpop_objects as a .csv:
+message("Outputting formatted Kpop data to disc: ")
+Kpop_list_filename <- str_c(output_prefix, "_K", min_k,"-", max_k, "_Kpop_data")
+rlist::list.save(Kpop_list, str_c(Kpop_list_filename,".rds"))
+rlist::list.save(Kpop_list, str_c(Kpop_list_filename,".yaml")) # this is an awful yaml file???
+message(str_c("  ",Kpop_list_filename,".rds"," written to ", getwd()))
+message(str_c("  ",Kpop_list_filename,".yaml"," written to ", getwd()))
+
+
+
+###################################################
+### HELPER FUNCTIONS - PLOTTING ###
+###################################################
+# Plotting functions
 get_ind_order <- function(tibble = Kpop) {
   #Helper function for 'mass_pop_plot_tile'
   # This function takes your Kpop tibble and returns a list of individuals sorted by population
@@ -92,163 +176,106 @@ get_ind_order <- function(tibble = Kpop) {
   
   return(ind_order) # new factor object
 }
-
-# plotting functions
-get_top_plot <- function(tibble) {
-  
-  # Set theme
-  top_theme <- theme(axis.text = element_blank(),
-                     axis.ticks = element_blank(),
-                     axis.ticks.length = unit(0, "pt"), #length of tick marks
-                     axis.title = element_blank(),
-                     axis.line.y = element_blank(),
-                     axis.line.x.bottom = element_blank(),
-                     plot.margin = margin(r = 30, b = 0, l = 30, ),
-                     legend.position = "none")
-  
+get_positional_plot <- function(tibble, pos_theme) {
   # Get order of individuals
   ind_order <- get_ind_order(tibble)
   
   # Pipe Kpop to ggplot
-  top_plot <- tibble %>%
+  pos_plot <- tibble %>%
     mutate(ind = factor(ind, levels = ind_order)) %>% #format data frame to order individuals
     # Begin plot command
     ggplot(aes(x = reorder(ind, population), y = percent, fill = K)) +
     geom_col(position = "fill") +
     theme_classic() +
     facet_grid(~population, space = "free", scales = "free_x") +
-    top_theme
+    pos_theme
   
   # return output plot
-  return(top_plot)
-}
-get_mid_plot <- function(tibble) {
-  
-  # Set theme
-  mid_theme <- theme(axis.text = element_blank(),
-                     axis.ticks = element_blank(),
-                     axis.ticks.length = unit(0, "pt"), #length of tick marks
-                     axis.title = element_blank(),
-                     axis.line.y = element_blank(),
-                     axis.line.x.bottom = element_blank(),
-                     strip.text.x.top = element_blank(),
-                     strip.background.x = element_blank(),
-                     plot.margin = margin(r = 30, b = 0, l = 30, ),
-                     legend.position = "none")
-  
-  # Get order of individuals
-  ind_order <- get_ind_order(tibble)
-  
-  # Pipe Kpop to ggplot
-  mid_plot <- tibble %>%
-    mutate(ind = factor(ind, levels = ind_order)) %>% #format data frame to order individuals
-    # Begin plot command
-    ggplot(aes(x = reorder(ind, population), y = percent, fill = K)) +
-    geom_col(position = "fill") +
-    theme_classic() +
-    facet_grid(~population, space = "free", scales = "free_x") +
-    mid_theme
-  
-  # return output plot
-  return(mid_plot)
-}
-get_bottom_plot <- function(tibble) {
-  
-  # Set theme
-  bottom_theme <- theme(axis.text.y = element_blank(),
-                        axis.text.x = element_text(angle = 45, vjust = 1.0, hjust = 1.0),
-                        axis.ticks.y = element_blank(),
-                        axis.title = element_blank(),
-                        axis.line.y = element_blank(),
-                        strip.text.x.top = element_blank(),
-                        strip.background.x = element_blank(),
-                        plot.margin = margin(r = 30, b = 5, l = 30, ),
-                        legend.position = "none")
-  
-  # Get order of individuals
-  ind_order <- get_ind_order(tibble)
-  
-  # Pipe Kpop to ggplot
-  bottom_plot <- tibble %>%
-    mutate(ind = factor(ind, levels = ind_order)) %>% #format data frame to order individuals
-    # Begin plot command
-    ggplot(aes(x = reorder(ind, population), y = percent, fill = K)) +
-    geom_col(position = "fill") +
-    theme_classic() +
-    facet_grid(~population, space = "free", scales = "free_x") +
-    bottom_theme
-  
-  # return output plot
-  return(bottom_plot)
+  return(pos_plot)
 }
 
-#FIXME Read in variables:
-# it could take in a fofn list, a fam file, and a pop_order file
-# read these in as a list?
-fam_loc <- "HoubaraFeb23_noUndulata_hiqual_admixture.fam"
-order_loc <- "pop_order_allInds.txt"
-q_loc_K2 <- "HoubaraFeb23_noUndulata_hiqual_admixture.K2.rep1.Q"
-q_loc_K3 <- "HoubaraFeb23_noUndulata_hiqual_admixture.K3.rep1.Q"
-q_loc_K4 <- "HoubaraFeb23_noUndulata_hiqual_admixture.K4.rep1.Q"
-q_loc_K5 <- "HoubaraFeb23_noUndulata_hiqual_admixture.K5.rep1.Q"
-q_loc_K6 <- "HoubaraFeb23_noUndulata_hiqual_admixture.K6.rep1.Q"
-q_loc_K7 <- "HoubaraFeb23_noUndulata_hiqual_admixture.K7.rep1.Q"
-q_loc_K8 <- "HoubaraFeb23_noUndulata_hiqual_admixture.K8.rep1.Q"
-q_loc_K9 <- "HoubaraFeb23_noUndulata_hiqual_admixture.K9.rep1.Q"
 
-Kpop_list <- list(q_loc_K2, q_loc_K3, q_loc_K4, q_loc_K5, q_loc_K6, q_loc_K7, q_loc_K8, q_loc_K9)
+###################################################
+### PLOT KPOP OBJECTS ###
+###################################################
+message("Now plotting Kpop objects: ")
 
-# Parse variables to Kpop objects
-output_prefix <- "Asian Houbara AllInds"
-pop_levels <- parse_pop_order(order_loc)
-pop_labels <- label_translate(pop_levels)
+### Define positional themes ###
+# FIXME : these themes can be compressed to remove redundant lines
+top_theme <- theme(axis.text = element_blank(),
+                   axis.ticks = element_blank(),
+                   axis.ticks.length = unit(0, "pt"), #length of tick marks
+                   axis.title = element_blank(),
+                   axis.line.y = element_blank(),
+                   axis.line.x.bottom = element_blank(),
+                   plot.margin = margin(r = 30, b = 0, l = 30, ),
+                   legend.position = "none")
 
+mid_theme <- theme(axis.text = element_blank(),
+                   axis.ticks = element_blank(),
+                   axis.ticks.length = unit(0, "pt"), #length of tick marks
+                   axis.title = element_blank(),
+                   axis.line.y = element_blank(),
+                   axis.line.x.bottom = element_blank(),
+                   strip.text.x.top = element_blank(),
+                   strip.background.x = element_blank(),
+                   plot.margin = margin(r = 30, b = 0, l = 30, ),
+                   legend.position = "none")
+  
+bottom_theme <- theme(axis.text.y = element_blank(),
+                      axis.text.x = element_text(angle = 45, vjust = 1.0, hjust = 1.0),
+                      axis.ticks.y = element_blank(),
+                      axis.title = element_blank(),
+                      axis.line.y = element_blank(),
+                      strip.text.x.top = element_blank(),
+                      strip.background.x = element_blank(),
+                      plot.margin = margin(r = 30, b = 5, l = 30, ),
+                      legend.position = "none")
 
-
-Kpop_list <- map(.x = Kpop_list, .f = parse_q_and_fam, fam_loc = fam_loc)
-Kpop_list <- map(.x = Kpop_list, .f = get_long_K_tibble, pop_order = pop_levels, pop_labels = pop_labels)
-  # save all Kpop_objects as a .csv:
-rlist::list.save(Kpop_list, "Kpop_list_AllInds.rds")
-rlist::list.save(Kpop_list, "Kpop_list_AllInds.yaml") # this is an awful yaml file???
-
-# Make mass plots
-  # get ind_order for all plots. This will be the same for each value of K
-ind_order <- get_ind_order(Kpop_list[[1]]) # doesn't really matter what entry we run it on.
-num_plots <- length(Kpop_list)
-plot_list <- vector("list", length = num_plots)
-
-plot_list <- map(.x = Kpop_list, .f = get_mass_pop_plot_tilepatch)
-rlist::list.save(plot_list, "plot_list_AllInds.rds")
-
-#### CREATE STACKED PLOT WITH PATCHWORK AND TILING ####
-#wrap_plots((top / mid) / bottom, ncol = 1) # text case for how patchwork works
-
-K2 <- get_top_plot(Kpop_list[[1]])
-K3 <- get_mid_plot(Kpop_list[[2]])
-K4 <- get_mid_plot(Kpop_list[[3]])
-K5 <- get_mid_plot(Kpop_list[[4]])
-K6 <- get_mid_plot(Kpop_list[[5]])
-K7 <- get_mid_plot(Kpop_list[[6]])
-K8  <- get_mid_plot(Kpop_list[[7]])
-K9 <- get_bottom_plot(Kpop_list[[length(Kpop_list)]])
-output_prefix = "Asian Houbara (all populations)"
+# FIXME : we can un-hard code this to allow for extra populations
+K2 <- get_positional_plot(Kpop_list[[1]], top_theme)
+K3 <- get_positional_plot(Kpop_list[[2]], mid_theme)
+K4 <- get_positional_plot(Kpop_list[[3]], mid_theme)
+K5 <- get_positional_plot(Kpop_list[[4]], mid_theme)
+K6 <- get_positional_plot(Kpop_list[[5]], mid_theme)
+K7 <- get_positional_plot(Kpop_list[[6]], mid_theme)
+K8 <- get_positional_plot(Kpop_list[[length(Kpop_list)]], bottom_theme)
 
 
-stack_plot_title <- str_c("Admixture: ", output_prefix)
-stack_plot_subtitle <- str_c("K2 - K9 ", "")
 
-stacked_plot <- wrap_plots(((((((K2 / K3) / K4) / K5) / K6) / K7) / K8) / K9)
-stacked_plot +
+###################################################
+### SAVE PLOTS TO FILESYSTEM ###
+###################################################
+# FIXME : We can clean up this mess.
+output_prefix = "Asian Houbara (NoYemen)"
+
+stack_plot_title <- str_c(output_prefix)
+stack_plot_subtitle <- str_c("K2 - K8 ", "")
+
+stacked_plot <- wrap_plots((((((K2 / K3) / K4) / K5) / K6) / K7) / K8)
+stacked_plot_title <- stacked_plot +
   plot_annotation(title = stack_plot_title,
-                subtitle = stack_plot_subtitle) & 
+                  subtitle = stack_plot_subtitle) & 
   theme(title = element_text(face = "bold", size = 14))
 
-
-#  
-filename <- "AllInds_K2-9_stacked_plot.pdf"
+# FIXME : put this into a function please
+# Plot version with a title
+filename <- str_replace(str_c(output_prefix, "_K",min_k,"-",max_k, "_stacked_plot.pdf"), " ", "_")
 ggsave(
   filename = filename,
   plot = stacked_plot,
+  device = "pdf",
+  width = 500,
+  height = 250,
+  units = "mm",
+  dpi = 300
+)
+
+# Plot version without a title
+filename <- str_replace(str_c(output_prefix, "_K",min_k,"-",max_k, "_stacked_plot_title.pdf"), " ", "_")
+ggsave(
+  filename = filename,
+  plot = stacked_plot_title,
   device = "pdf",
   width = 500,
   height = 250,
