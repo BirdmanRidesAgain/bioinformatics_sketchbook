@@ -8,6 +8,8 @@
 # This is a command-line-usable script designed to create pairwise FST plots from a .vcf file and a .fam file
 # Some code is not my own; most of the new additions are just to force it to work from command line.
 
+# CID is 12738464
+
 ###################################################
 ### PARSE ARGUMENTS ###
 ###################################################
@@ -109,17 +111,30 @@ label_translate <- function(level_string) {
 get_fst_tibble <- function(fst_object, pop_order) {
   # generate two matrices according to population order
   fst_mat <- as.matrix(fst_object)
-  fst_mat1 <- fst_mat[pop_order, ]
-  fst_mat2 <- fst_mat[, pop_order]
+  fst_mat_order <- fst_mat[unlist(pop_order), unlist(pop_order)]
   
   # convert matrices to tibble
-  fst_tibble <- tibble(Pop1 = dimnames(fst_mat2)[[2]][ind[, 2]],
-                       Pop2 = dimnames(fst_mat2)[[1]][ind[, 1]],
-                       Fst = fst_mat2[ind])
+  ind <- which(upper.tri(fst_mat_order), arr.ind = TRUE)
+  fst_tibble <- tibble(Pop1 = dimnames(fst_mat_order)[[2]][ind[, 2]],
+                       Pop2 = dimnames(fst_mat_order)[[1]][ind[, 1]],
+                       Fst = fst_mat_order[ind])
   
-  # add data to tibble
-  fst_tibble$Pop1 <- factor(fst_tibble$Pop1, levels = union(fst_tibble$Pop1))
-  fst_tibble$Pop2 <- factor(fst_tibble$Pop2, levels = union(fst_tibble$Pop2))
+  # Get new population levels
+  Pop1_levels <- pop_order[-c(1)]
+  Pop2_levels <- pop_order[-c(length(pop_order))]
+  
+  # Get new population labels
+  Pop1_labels <- label_translate(Pop1_levels)
+  Pop2_labels <- label_translate(Pop2_levels)
+  
+  # Re-level populations and convert Fst scores
+  fst_tibble <- fst_tibble %>%
+    mutate(Pop1 = factor(Pop1,
+                         levels = Pop1_levels,
+                         labels = Pop1_labels),
+           Pop2 = factor(Pop2, 
+                         levels = pop_levels,
+                         labels = pop_labels))
   fst_tibble$Fst[fst_tibble$Fst < 0] = 0 # set all scores below zero to zero
   
   return(fst_tibble)
@@ -129,12 +144,12 @@ plot_fst_tibble <- function(fst_tibble) {
   fst_tibble %>% str
   
   # Get requires plotting arguments
-  fst_label <- str_c(italic("F"), "ST") # OR 'expression(italic("F")[ST])'
+  fst_label <- expression(italic("F")[ST])
   max_fst <- max(fst_tibble$Fst)
   mid <- max_fst / 2
   
   fst_theme <- theme(axis.text = element_text(color = "black",
-                                              size = 10,
+                                              size = 12,
                                               face = "bold"),
                      axis.title = element_blank(),
                      panel.grid = element_blank(),
@@ -146,7 +161,7 @@ plot_fst_tibble <- function(fst_tibble) {
   # Begin plotting command
   fst_plot <- ggplot(fst_tibble, aes(x = Pop1, y = Pop2, fill = Fst)) +
     geom_tile(color = "black") +
-    geom_text(aes(label = Fst), color = "black", size = 3) +
+    geom_text(aes(label = Fst), color = "black", size = 9) +
     scale_fill_gradient2(low = "blue", mid = "pink", high = "red",
                          midpoint = mid,
                          name = fst_label,
@@ -163,6 +178,7 @@ save_plot <- function(plot = "plot", out_dir = "./", output_prefix) {
   # Get filename from output prefix
   output_prefix_clean <- str_replace_all(output_prefix, pattern = " ", replacement = "_")
   filename <- str_c(output_prefix_clean,".pdf")
+  filepath <- str_c(out_dir,filename)
   
   # check for existence of output directory
   if(dir.exists(out_dir) == FALSE) {
@@ -174,7 +190,7 @@ save_plot <- function(plot = "plot", out_dir = "./", output_prefix) {
   
   # save plot to output directory
   ggsave(
-    filename = filename,
+    filename = filepath,
     plot = plot,
     device = "pdf",
     width = 500,
@@ -192,13 +208,6 @@ save_plot <- function(plot = "plot", out_dir = "./", output_prefix) {
 ###################################################
 ### MAIN ###
 ###################################################
-# temporary file locations:
-setwd("/Users/keilercollier/Downloads/houbara_paper/")
-file_loc <- "Houbara_AllInds.vcf"
-fam_loc <- "Houbara_AllInds.fam"
-order_loc <- "pop_order_allInds.txt"
-output_prefix <- "Houbara AllPops FST"
-
 ### PARSE AND WRANGLE DATA ###
 # get pop_level/label objects.
 pop_levels <- get_list_from_1_col_txt(order_loc)
@@ -218,11 +227,12 @@ pop(data) <- ordered_poplist # assign individuals to populations in the genind o
 message("Beginning to calculate pairwise FST. This will take a long time.")
 fst <- genet.dist(data, method = "WC84") %>%
   round(digits = 3)
+saveRDS(fst)
+message("FST table saved to working directory.")
 
 # now we generate and plot the fst matrix
-fst_tibble <- get_fst_tibble()
-newplot <- plot_fst_tibble()
+fst_tibble <- get_fst_tibble(fst, pop_levels)
+newplot <- plot_fst_tibble(fst_tibble)
+save_plot(newplot, getwd(), output_prefix)
 
-
-
-
+message("Program terminating.")
