@@ -149,8 +149,9 @@ plot_fst_tibble <- function(fst_tibble) {
   mid <- max_fst / 2
   
   fst_theme <- theme(axis.text = element_text(color = "black",
-                                              size = 12,
+                                              size = 15,
                                               face = "bold"),
+                     axis.text.x = element_text(angle = 45, hjust = 1.0, vjust = 1.0),
                      axis.title = element_blank(),
                      panel.grid = element_blank(),
                      panel.background = element_blank(),
