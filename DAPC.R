@@ -83,19 +83,6 @@ create_poplist <- function(matched_ind_pop_df) {
     pull(var = population)
   return(poplist)
 }
-remove_NA_from_genind <- function(matched_pop_inds, data) {
-  # Produce list of individuals with no population assigned
-  NA_list <- matched_pop_inds %>%
-    filter(is.na(population)) %>%
-    pull(var = ind)
-  
-  # filter those individuals from the genind object
-  for (i in 1:length(NA_list)) {
-    data <- data[indNames(data) != NA_list[[i]]]
-    message(str_c(NA_list[[i]]), " removed")
-  }
-  return(data)
-}
 
 # Clustering functions
 run_dapc <- function(data, num_PCs = 10, num_DAs = 3) {
@@ -106,6 +93,20 @@ run_dapc <- function(data, num_PCs = 10, num_DAs = 3) {
   num_DAs <- 3 # FIXME : chosen after viewing the F-statistics for successive values of eigenvectors; hardcoded. Modifying this will require modifying the 'colnames' assignment statement in plot_dapc()
   dapc_data <- dapc(data, data$pop, n.pca = num_PCs, n.da = num_DAs)
   return(dapc_data)
+}
+prep_dapc_ind_coords <- function(dapc_data, data, pop_order, label_order) {
+  # This command formats the input PCA data for the plotting command. It is equivalent, albeit simpler than the corresponding DAPC function.
+  ind_coords <- as_tibble(dapc_data$ind.coord)
+  colnames(ind_coords) <- c("Axis1","Axis2","Axis3")
+  ind_coords$Ind = indNames(data)
+  ind_coords$Pop <- factor(data$pop, 
+                           levels=pop_order, 
+                           labels=label_order)
+  
+  # Sorts the data frame by the population order given above
+  #ind_coords <- left_join(data.frame(Pop = label_order), ind_coords, by = "Pop", multiple = "all") # This magically sorts my data frame my the vector given above
+  
+  return(ind_coords)
 }
 plot_cluster_analysis <- function(ind_coords, colors = cols, title_string) {
   # Function used to plot clustering analyses
@@ -164,10 +165,11 @@ dapc_data <- run_dapc(data) # default "num_DAs" hardcoded to 3.
 ### PLOT PCA / DAPC ###
 #######################################################
 # FIXME hardcoded pop. order
-pop_order <- c("Mongolia", "E_Kazakhstan", "C_Kazakhstan", "C_Uzbekistan", "W_Kazakhstan", "W_Uzbekistan", "N_Iran", "S_Iran", "Israel")
-label_order <- c('Israel','South Iran','North Iran','West Uzbekistan','Central Uzbekistan','West Kazakhstan','Central Kazakhstan','East Kazakhstan','Mongolia')
+pop_order <- c("Mongolia", "E_Kazakhstan", "C_Kazakhstan", "C_Uzbekistan", "W_Kazakhstan", "W_Uzbekistan", "N_Iran", "S_Iran", "Israel", "Yemen")
+label_order <- c('Mongolia','East Kazakhstan','Central Kazakhstan','Central Uzbekistan','West Kazakhstan','West Uzbekistan','North Iran','South Iran','Israel','Yemen')
+
 # FIXME hardcoded colors. # The order is : "Yemen", "Israel", "S Iran", "N Iran", "W Uzbekistan", "W Kazakhstan", "C Uzbekistan", "C Kazakhstan", "E Kazakhstan", "Mongolia"
-cols <- c("#B15928","#CAB2D6","#6A3D9A","#FB9A99","#E31A1C","#33A02C","#B2DF8A","#A6CEE3","#1F78B4")
+cols <- c("#1F78B4","#A6CEE3","#B2DF8A","#33A02C","#E31A1C","#FB9A99","#6A3D9A","#CAB2D6","#B15928","#FFFF99")
 
 # Prep data frames for plotting
 ind_coords_dapc <- prep_dapc_ind_coords(dapc_data, data, pop_order, label_order) # DAPC
