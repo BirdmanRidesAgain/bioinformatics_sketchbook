@@ -142,17 +142,9 @@ plot_cluster_analysis <- function(ind_coords, colors = cols, title_string) {
 ###################################################
 ### READ IN VCF AND FAM ###
 ###################################################
-library(tidyverse)
-library(adegenet)
-library(scales)
-library(vcfR)
+data <- get_genind_from_vcf(file_loc)
+pop_info <- parse_fam_file(fam_loc)
 
-
-#file_loc <- "Houbara_NoYemen.recode.vcf"
-#data <- get_genind_from_vcf(file_loc)
-#fam_loc <- "Houbara_NoYemen.fam"
-#pop_info <- parse_fam_file(fam_loc)
-#output_prefix <- "No Yemen"
 #######################################################
 ### ADD POPULATION INFORMATION TO VCF/GENIND OBJECT ###
 #######################################################
