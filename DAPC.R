@@ -147,11 +147,12 @@ library(adegenet)
 library(scales)
 library(vcfR)
 
-file_loc <- "Houbara_NoYemen.recode.vcf"
-data <- get_genind_from_vcf(file_loc)
-fam_loc <- "Houbara_NoYemen.fam"
-pop_info <- parse_fam_file(fam_loc)
-output_prefix <- "No Yemen"
+
+#file_loc <- "Houbara_NoYemen.recode.vcf"
+#data <- get_genind_from_vcf(file_loc)
+#fam_loc <- "Houbara_NoYemen.fam"
+#pop_info <- parse_fam_file(fam_loc)
+#output_prefix <- "No Yemen"
 #######################################################
 ### ADD POPULATION INFORMATION TO VCF/GENIND OBJECT ###
 #######################################################
