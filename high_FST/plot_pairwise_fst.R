@@ -228,8 +228,43 @@ pop(data) <- ordered_poplist # assign individuals to populations in the genind o
 message("Beginning to calculate pairwise FST. This will take a long time.")
 fst <- genet.dist(data, method = "WC84") %>%
   round(digits = 3)
-saveRDS(fst)
-message("FST table saved to working directory.")
+saveRDS(fst, str_c(output_prefix,"_fst_matrix.rds"))
+message("Matrix of pairwise FST values saved to working directory.")
+
+# Get bootstraps for testing:
+num_bootstraps <- 1000
+lower_CI <- 0.025
+upper_CI <- 0.975
+
+message(str_c("Performing ", num_bootstraps, " bootstraps."))
+message(str_c("Confidence interval is ", lower_CI, " to ", upper_CI))
+bootstrap <- boot.ppfst(data, nboot = num_bootstraps, quant = c(lower_CI, upper_CI))
+saveRDS(bootstrap, str_c(output_prefix,"_1000_fst_bootstraps.rds"))
+message("Matrix of FST bootstrap values saved to working directory.")
+
+# Convert bootstrap values to P-values
+get_p_values <- function(fst, bootstrap_reps) {
+  # format fst to get only the uper triangle
+  fst_mat <- as.matrix(fst)
+  fst_mat[!upper.tri(fst_mat)] <- NA
+  fst_mat <- as_tibble(fst_mat)
+  
+  # get lower and upper limits
+  ll <- as_tibble(bootstrap_reps$ll)
+  ul <- as_tibble(bootstrap_reps$ul)
+  
+  SE <- (ul - ll) / (2 * 1.96) # this is only good for a 95% CI
+  z <- fst_mat / SE
+  #P = exp(−0.717×z − 0.416×z2).
+  p_val <- exp((-(0.717) * z) - (0.416 * (z^2)))
+  pairwise_comp_sig <- p_val <= 0.05
+  stats <- as.list(p_val, pairwise_comp_sig)
+  return(stats)
+}
+# Print out which P-values are significant vs nonsignificant
+p_val <- get_p_values(fst, bootstrap)
+saveRDS(p_val, str_c(output_prefix,"_p_value.rds"))
+
 
 # now we generate and plot the fst matrix
 fst_tibble <- get_fst_tibble(fst, pop_levels)
