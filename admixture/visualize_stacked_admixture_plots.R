@@ -199,8 +199,6 @@ get_positional_plot <- function(tibble, pos_theme) {
   return(pos_plot)
 }
 
-K2 <- get_positional_plot(Kpop_list[[1]], top_theme)
-K2
 ###################################################
 ### PLOT KPOP OBJECTS ###
 ###################################################
