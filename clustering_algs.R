@@ -518,7 +518,6 @@ define_output_dir_rec <- function(name = "out", wd = getwd()) {
     dir.create(out_dir)
     message(str_c("'",out_dir, "' created"))
   }
-  else { message(str_c("'", out_dir,"' already exists"))}
   # return out_dir on end
   return(out_dir)
 }
@@ -538,17 +537,13 @@ save_plot <- function(plot, filename, filetype, out_dir) {
 
 ### CREATING DIRECTORY STRUCTURE
 ### FIXME - make this such that you use your fancy new recursive call structure
-out_dir_base <- define_output_dir(suffix = "clustering_algs_out")
-  out_dir_singular <- define_output_dir(args$prefix, suffix = "singular", out_dir_base)
-    out_dir_singular_plot <- define_output_dir(args$prefix, suffix = "singular_plots", out_dir_singular)
-    out_dir_singular_csv <- define_output_dir(args$prefix, suffix = "singular_csv", out_dir_singular)
- 
-  if (args$classify) {
-    out_dir_classify <- define_output_dir(args$prefix, suffix = "classify", out_dir_base)
-      out_dir_classify_plot <- define_output_dir(args$prefix, suffix = "classify_plots", out_dir_classify)
-      out_dir_classify_csv <- define_output_dir(args$prefix, suffix = "classify_csv", out_dir_classify)
-  }
+out_dir_singular_plot <- define_output_dir_rec(name = "clustering_algs_out/output_singular/output_singular_csv", wd = getwd())
+out_dir_singular_plot <-  define_output_dir_rec(name = "clustering_algs_out/output_singular/output_singular_plot", wd = getwd())
 
+if (args$classify) {
+  out_dir_classify_plot <- define_output_dir_rec(name = "clustering_algs_out/output_classify/output_classify_csv", wd = getwd())
+  out_dir_classify_plot <-  define_output_dir_rec(name = "clustering_algs_out/output_classify/output_classify_plot", wd = getwd())
+}
 
 ### SAVE CSV AND PLOT OUTPUT TO THE APPROPRIATE DIRECTORIES
   # FIXME - same here; code can iterate through a list of filenames/plots
@@ -622,8 +617,6 @@ out_dir_base <- define_output_dir(suffix = "clustering_algs_out")
       plot <- out_classify$DAPC$plot[[i]]
       save_plot(plot = plot, filename = filename, out_dir = out_dir_classify_plot, filetype = args$filetype)
     }
-    
-    
     
     # SAVE PCA OBJECTS
     if(args$pca) {
