@@ -8,7 +8,6 @@
 # This is a command-line-usable script designed to create pairwise FST plots from a .vcf file and a .fam file
 # Some code is not my own; most of the new additions are just to force it to work from command line.
 
-# CID is 12738464
 
 ###################################################
 ### PARSE ARGUMENTS ###
@@ -139,10 +138,7 @@ get_fst_tibble <- function(fst_object, pop_order) {
   
   return(fst_tibble)
 }
-plot_fst_tibble <- function(fst_tibble) {
-  # display structure of tibble
-  fst_tibble %>% str
-  
+heatmap_fst_tibble <- function(fst_tibble) {
   # Get requires plotting arguments
   fst_label <- expression(italic("F")[ST])
   max_fst <- max(fst_tibble$Fst)
@@ -175,6 +171,44 @@ plot_fst_tibble <- function(fst_tibble) {
   
   return(fst_plot)
 }
+reshape_fst_violin <- function(pop, data = fst_tibble) {
+  # Helper function for 'violin_fst_tibble'
+  # It pulls out all the Fst's associated with a particular population and labels them with only that pop.
+  tib <- fst_tibble %>% 
+    filter(Pop1 == pop | Pop2 == pop) %>%
+    mutate(Origin = pop) %>%
+    select(Origin, Fst)
+  return(tib)
+}
+violin_fst_tibble <- function(fst_tibble, pop_labels, colors = NULL) {
+  # transform tibble to a data frame with "Origin" and "Fst"
+  origin_tib <- bind_rows(lapply(pop_labels, reshape_fst_violin))
+  
+  # function creates a violin plot or 
+  violin_theme <- theme(
+    axis.title.x = element_text(margin = margin(t = 15)),
+    axis.title.y = element_text(margin = margin(r = 20)),
+    legend.position.inside = c(1, 0.07),         # Adjust the legend position (x, y)
+    legend.justification = c(1, 0),        # Adjust the justification (right, bottom)
+    legend.margin = margin(t = 10, r = 10), # Adjust the margin around the legend
+    legend.text = element_text(size = 13),
+    legend.title = element_text(size = 16)
+  )
+  
+  violin_plot <- origin_tib %>%
+    ggplot(aes(Origin, Fst, fill = Origin)) +
+    geom_violin(alpha = 0.5) +
+    geom_point(aes(fill = Origin, color = "black"), size = 4, shape = 21, alpha = 0.8) +
+    #geom_hline(yintercept = 3.125, color = "red", linetype = "dashed") +
+    scale_fill_manual(values = colors) +  # Set custom fill colors for violin plot
+    scale_color_manual(values = colors) +  # Set custom colors for points
+    labs(x = "", y = "Distance to centroid") +
+    coord_flip() +
+    theme_classic() +
+    violin_theme
+  return(violin_plot) 
+}
+
 save_plot <- function(plot = "plot", out_dir = "./", output_prefix) {
   # Get filename from output prefix
   output_prefix_clean <- str_replace_all(output_prefix, pattern = " ", replacement = "_")
@@ -265,10 +299,28 @@ get_p_values <- function(fst, bootstrap_reps) {
 p_val <- get_p_values(fst, bootstrap)
 saveRDS(p_val, str_c(output_prefix,"_p_value.rds"))
 
-
-# now we generate and plot the fst matrix
+#### VISUALIZE RESULTS ####
 fst_tibble <- get_fst_tibble(fst, pop_levels)
-newplot <- plot_fst_tibble(fst_tibble)
-save_plot(newplot, getwd(), output_prefix)
+# 1. HEATMAP FROM MATRIX
+heatmap <- heatmap_fst_tibble(fst_tibble)
 
+# 2. VIOLIN PLOT
+violin_plot <- violin_fst_tibble(fst_tibble, pop_levels)
+
+  #custom_colors <- c(Yemen="#FFFF99", Israel="#B15928","South Iran"="#FB9A99", "North Iran"="#E31A1C", "West Uzbekistan"="#CAB2D6", "West Kazakhstan"="#6A3D9A", "Central Uzbekistan"="#A6CEE3", "Central Kazakhstan"="#1F78B4", "East Kazakhstan"="#B2DF8A", Mongolia="#33A02C")
+violin_fst_tibble(fst_tibble, pop_labels)
+
+ggsave(
+  filename = str_c(getwd(),"violinplot"),
+  plot = violin_plot,
+  device = "pdf",
+  width = 500,
+  height = 250,
+  units = "mm",
+  dpi = 300
+)
+
+# 3. SAVE PLOTS
+save_plot(heatmap, getwd(), str_c(output_prefix, "_heatmap"))
+save_plot(violin_plot, getwd(), str_c(output_prefix, "_violin_plot"))
 message("Program terminating.")
