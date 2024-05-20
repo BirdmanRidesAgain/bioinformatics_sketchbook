@@ -147,7 +147,7 @@ check_installed_libs(libs)
 lib_load(libs)
 
 ### PRINT CRITICAL PARAMS FOR USER:
-  # FIXME - should only write the end-user useful params.
+# FIXME - should only write the end-user useful params.
 print_params <- function(args) {
   message("User-defined parameters:")
   
@@ -155,8 +155,8 @@ print_params <- function(args) {
     name <- names(args[i])
     if (!name == "") {
       message(str_c("\t",name, ": ", toString(args[i])))
-      }
     }
+  }
   message("")
 }
 print_params(args)
@@ -209,7 +209,7 @@ pop_info <- parse_pop_file(args$pop)
 ordered_popvect <- get_ordered_pop_vector(genind, pop_info)
 pop(genind) <- ordered_popvect # assign individuals to populations in the genind object
 
-  #get pop_order
+#get pop_order
 if (!is.null(args$pop_order)) {
   pop_order <- parse_pop_order(args$pop_order)
 } else { pop_order = levels(pop(genind)) }
@@ -233,12 +233,12 @@ prep_ind_coords <- function(clust_data, genind = genind, pop_order = pop_order, 
     coord <- as_tibble(clust_data$ind.coord)
   }
   else { coord <- as_tibble(clust_data$li) }
-
+  
   
   colnames(coord) <- c("Axis1","Axis2","Axis3")
   coord$Ind = indNames(genind)
   coord$Pop <- factor(genind$pop,
-                           levels=pop_order)
+                      levels=pop_order)
   
   # Sorts the data frame by the population order given above
   #ind_coords <- left_join(data.frame(Pop = label_order), ind_coords, by = "Pop", multiple = "all") # This magically sorts my data frame my the vector given above
@@ -281,7 +281,7 @@ run_mclust <- function(coord, num_clust = 0) {
   # We want $classification only
   filt_clust <- clust %>%
     keep_at(at = c("classification")) %>%
-  return(filt_clust)
+    return(filt_clust)
 }
 mclust_wrapper <- function(coord, num_clust = 0) {
   # Get input tibble to work on
@@ -354,11 +354,10 @@ if (singular<-TRUE) {
     out_list$csv <- if (clust_type == "DAPC") { run_DAPC(genind) } else { run_PCA(genind) } %>%
       mclust_wrapper(num_clust = args$mclust_num)
     out_list$plot <- plot_cluster_analysis(out_list$csv, plot_title = plot_title, cols = cols)
-  
+    
     
     return(out_list)
   }
-
   # FIXME END; BEGIN VERIFIED CODE AGAIN
   
   # Initialize output list
@@ -369,14 +368,16 @@ if (singular<-TRUE) {
   plot_title <- get_plot_title(args$prefix, "DAPC (all individuals)")
   out_singular$DAPC$all_inds$plot <- plot_cluster_analysis(out_singular$DAPC$all_inds$csv, plot_title = plot_title, cols)
   
-  # Populate DAPC content for only reference individuals
-  classify_idx <- which(pop(genind) == args$classified_pop)
+  # If classify is set, populate DAPC content for only reference individuals
+  if (args$classify) {
+    classify_idx <- which(pop(genind) == args$classified_pop)
     # recycled code from above
-  ref_genind <- subsample_genind(classify_idx, genind)
-  out_singular$DAPC$ref_inds$csv <- run_DAPC(ref_genind) %>%
-    mclust_wrapper(num_clust = args$mclust_num)
-  plot_title <- get_plot_title(args$prefix, "DAPC (reference individuals)")
-  out_singular$DAPC$ref_inds$plot <- plot_cluster_analysis(out_singular$DAPC$ref_inds$csv, plot_title = plot_title, cols)
+    ref_genind <- subsample_genind(classify_idx, genind)
+    out_singular$DAPC$ref_inds$csv <- run_DAPC(ref_genind) %>%
+      mclust_wrapper(num_clust = args$mclust_num)
+    plot_title <- get_plot_title(args$prefix, "DAPC (reference individuals)")
+    out_singular$DAPC$ref_inds$plot <- plot_cluster_analysis(out_singular$DAPC$ref_inds$csv, plot_title = plot_title, cols)
+  }
   
   # If --pca flag set, populate PCA content
   if (args$pca) {
@@ -388,10 +389,12 @@ if (singular<-TRUE) {
     out_singular$PCA$all_inds$plot <- plot_cluster_analysis(out_singular$PCA$all_inds$csv, plot_title = plot_title, cols)
     
     #PCA for ref_only
-    out_singular$PCA$all_inds$csv <- run_PCA(ref_genind) %>%
-      mclust_wrapper(num_clust = args$mclust_num)
-    plot_title <- get_plot_title(args$prefix, "PCA (all individuals)")
-    out_singular$PCA$ref_inds$plot <- plot_cluster_analysis(out_singular$PCA$all_inds$csv, plot_title = plot_title, cols)
+    if (args$classify) {
+      out_singular$PCA$all_inds$csv <- run_PCA(ref_genind) %>%
+        mclust_wrapper(num_clust = args$mclust_num)
+      plot_title <- get_plot_title(args$prefix, "PCA (reference individuals)")
+      out_singular$PCA$ref_inds$plot <- plot_cluster_analysis(out_singular$PCA$all_inds$csv, plot_title = plot_title, cols)
+    }
   }
   message("End singular mode.\n")
 }
@@ -418,7 +421,7 @@ if (args$classify) {
   out_classify <- list()
   classify_genind <- subsample_unknowns(args$classified_pop, genind)
   csv_list <- as.list(1:length(classify_genind)) # this list will be directly appended to 'out_classify$DAPC$csv'
-
+  
   ### Run DAPCs over all subsets - gets csvs
   classify_idx <- which(pop(genind) == args$classified_pop) # indices of all the inds in 'unknown'
   indnames_unknown <- rownames(genind[classify_idx]$tab) # names of inds at the indices above. Used to rename the output list
@@ -433,7 +436,7 @@ if (args$classify) {
   # FIXME - maybe rework this section, b/c redundancy between 'csv_list' and 'out_classify$DAPC$csv'
   names(csv_list) <- indnames_unknown
   out_classify$DAPC$csv <- csv_list
-
+  
   ### Plot all subsets (all items in 'out_classify$DAPC$csv' and/or 'csv_list')
   plot_list <- as.list(1:length(classify_genind))
   
@@ -476,7 +479,7 @@ if (args$classify) {
     names(plot_list) <- indnames_unknown
     out_classify$PCA$plot <- plot_list
   }
-
+  
   message("End classify mode.\n")
 }
 
@@ -537,103 +540,108 @@ save_plot <- function(plot, filename, filetype, out_dir) {
 
 ### CREATING DIRECTORY STRUCTURE
 ### FIXME - make this such that you use your fancy new recursive call structure
-out_dir_singular_plot <- define_output_dir_rec(name = "clustering_algs_out/output_singular/output_singular_csv", wd = getwd())
+out_dir_singular_csv <- define_output_dir_rec(name = "clustering_algs_out/output_singular/output_singular_csv", wd = getwd())
 out_dir_singular_plot <-  define_output_dir_rec(name = "clustering_algs_out/output_singular/output_singular_plot", wd = getwd())
 
 if (args$classify) {
-  out_dir_classify_plot <- define_output_dir_rec(name = "clustering_algs_out/output_classify/output_classify_csv", wd = getwd())
+  out_dir_classify_csv <- define_output_dir_rec(name = "clustering_algs_out/output_classify/output_classify_csv", wd = getwd())
   out_dir_classify_plot <-  define_output_dir_rec(name = "clustering_algs_out/output_classify/output_classify_plot", wd = getwd())
 }
 
 ### SAVE CSV AND PLOT OUTPUT TO THE APPROPRIATE DIRECTORIES
-  # FIXME - same here; code can iterate through a list of filenames/plots
-  
-  ### Plot singular items
-  clust_type <- "DAPC"
-  message("Saving singular plots and coordinates:")
-  # CSV
-  coordname <- str_c(args$prefix, "_all_inds_", clust_type, ".csv")
-  filestring <- str_c(out_dir_singular_csv, coordname)
-  write.csv(out_singular$DAPC$all_inds$csv, filestring)
-  #PLOT
-  plotname <- str_c(args$prefix, "_all_inds_", clust_type, ".", args$filetype)
-  save_plot(out_singular$DAPC$all_inds$plot, plotname, args$filetype, out_dir_singular_plot)
+# FIXME - same here; code can iterate through a list of filenames/plots
 
-  # CSV
+### Plot singular items
+clust_type <- "DAPC"
+message("Saving singular plots and coordinates:")
+# CSV
+coordname <- str_c(args$prefix, "_all_inds_", clust_type, ".csv")
+filestring <- str_c(out_dir_singular_csv, "/", coordname)
+write.csv(out_singular$DAPC$all_inds$csv, file = filestring)
+#PLOT
+plotname <- str_c(args$prefix, "_all_inds_", clust_type, ".", args$filetype)
+save_plot(out_singular$DAPC$all_inds$plot, plotname, args$filetype, out_dir_singular_plot)
+
+# CSV
+if (args$classify) {
   coordname <- str_c(args$prefix, "_ref_inds_", clust_type, ".csv")
-  filestring <- str_c(out_dir_singular_csv, coordname)
+  filestring <- str_c(out_dir_singular_csv, "/", coordname)
   write.csv(out_singular$DAPC$ref_inds$csv, filestring)
   #PLOT
   plotname <- str_c(args$prefix, "_ref_inds_", clust_type, ".", args$filetype)
   save_plot(out_singular$DAPC$ref_inds$plot, plotname, args$filetype, out_dir_singular_plot)
-  
-  #PCA
-  if (args$pca) {
-    clust_type <- "PCA"
-    #CSV
-    coordname <- str_c(args$prefix, "_all_inds_", clust_type, ".csv")
-    filestring <- str_c(out_dir_singular_csv, coordname)
-    write.csv(out_singular$PCA$all_inds$csv, filestring)
-    #PLOT
-      plotname <- str_c(args$prefix, "_all_inds_", clust_type, ".", args$filetype)
-      save_plot(out_singular$PCA$all_inds$plot, plotname, args$filetype, out_dir_singular_plot)
-      
-      #CSV
-      coordname <- str_c(args$prefix, "_ref_inds_", clust_type, ".csv")
-      filestring <- str_c(out_dir_singular_csv, coordname)
-      write.csv(out_singular$PCA$ref_inds$csv, filestring)
-      #PLOT
-      plotname <- str_c(args$prefix, "_ref_inds_", clust_type, ".", args$filetype)
-      save_plot(out_singular$PCA$ref_inds$plot, plotname, args$filetype, out_dir_singular_plot)
-    }
-    
-  ### Plot classify items
-  if (args$classify) {
-    message("Saving classify plots and coordinates:")
-    
-    # HELPER FUNCTIONS FOR SAVING CLASSIFY OBJECTS
-    save_classify_csvs <- function(coord, indname, prefix, clust_type, out_dir) {
-      filename_coord <- str_c(prefix, "_", indname, "_", clust_type, ".csv")
-      write.csv(coord, file.path(out_dir, filename_coord))
-    }
-    save_classify_plot <- function(plot, filename, out_dir) {
-      save_plot(plot, filestring, out_dir = out_dir, filetype = args$filetype)
-    }
-    get_classify_plotname <- function(indname, prefix, clust_type, filetype) {
-      str_c(args$prefix, "_", indname, "_", clust_type, ".", args$filetype)
-    }
+}
 
-    # SAVE DAPC COORDS
-    clust_type <- "DAPC"
-    map2(.x = out_classify$DAPC$csv, .y = indnames_unknown, .f = save_classify_csvs, prefix = args$prefix, clust_type = clust_type, out_dir = out_dir_classify_csv)
-    
-    # SAVE DAPC PLOTS
-    ### FIND A WAY TO SAVE THE DAPC PLOTS
-      # Get list of filenames for each plot
-    classify_plot_title_DAPC <- purrr::map(.x = indnames_unknown, .f = get_classify_plotname, clust_type = clust_type) 
-    i = 0
-    for (i in 1:length(classify_genind)) {
-      filename <- classify_plot_title_DAPC[[i]]
-      plot <- out_classify$DAPC$plot[[i]]
-      save_plot(plot = plot, filename = filename, out_dir = out_dir_classify_plot, filetype = args$filetype)
-    }
-    
-    # SAVE PCA OBJECTS
-    if(args$pca) {
-      # Save coord objects
-      clust_type <- "PCA"
-      map2(.x = out_classify$PCA$csv, .y = indnames_unknown, .f = save_classify_csvs, prefix = args$prefix, clust_type = clust_type, out_dir = out_dir_classify_csv)
-      
-      # Save plot objects
-      classify_plot_title_PCA <- purrr::map(.x = indnames_unknown, .f = get_classify_plotname, clust_type = clust_type) 
-      i = 0
-      for (i in 1:length(classify_genind)) {
-        filename <- classify_plot_title_PCA[[i]]
-        plot <- out_classify$PCAC$plot[[i]]
-        save_plot(plot = plot, filename = filename, out_dir = out_dir_classify_plot, filetype = args$filetype)
-      }
-    }
-    message(str_c("Output written to '", out_dir_classify, "'"))
+
+#PCA
+if (args$pca) {
+  clust_type <- "PCA"
+  #CSV
+  coordname <- str_c(args$prefix, "_all_inds_", clust_type, ".csv")
+  filestring <- str_c(out_dir_singular_csv, "/", coordname)
+  write.csv(out_singular$PCA$all_inds$csv, filestring)
+  #PLOT
+  plotname <- str_c(args$prefix, "_all_inds_", clust_type, ".", args$filetype)
+  save_plot(out_singular$PCA$all_inds$plot, plotname, args$filetype, out_dir_singular_plot)
+  
+  #CSV
+  if (args$classify) {
+    coordname <- str_c(args$prefix, "_ref_inds_", clust_type, ".csv")
+    filestring <- str_c(out_dir_singular_csv, "/", coordname)
+    write.csv(out_singular$PCA$ref_inds$csv, filestring)
+    #PLOT
+    plotname <- str_c(args$prefix, "_ref_inds_", clust_type, ".", args$filetype)
+    save_plot(out_singular$PCA$ref_inds$plot, plotname, args$filetype, out_dir_singular_plot)
+  }
+}
+
+### Plot classify items
+if (args$classify) {
+  message("Saving classify plots and coordinates:")
+  
+  # HELPER FUNCTIONS FOR SAVING CLASSIFY OBJECTS
+  save_classify_csvs <- function(coord, indname, prefix, clust_type, out_dir) {
+    filename_coord <- str_c(prefix, "_", indname, "_", clust_type, ".csv")
+    write.csv(coord, file.path(out_dir, filename_coord))
+  }
+  save_classify_plot <- function(plot, filename, out_dir) {
+    save_plot(plot, filestring, out_dir = out_dir, filetype = args$filetype)
+  }
+  get_classify_plotname <- function(indname, prefix, clust_type, filetype) {
+    str_c(args$prefix, "_", indname, "_", clust_type, ".", args$filetype)
   }
   
-  message("Program end.")
+  # SAVE DAPC COORDS
+  clust_type <- "DAPC"
+  map2(.x = out_classify$DAPC$csv, .y = indnames_unknown, .f = save_classify_csvs, prefix = args$prefix, clust_type = clust_type, out_dir = out_dir_classify_csv)
+  
+  # SAVE DAPC PLOTS
+  ### FIND A WAY TO SAVE THE DAPC PLOTS
+  # Get list of filenames for each plot
+  classify_plot_title_DAPC <- purrr::map(.x = indnames_unknown, .f = get_classify_plotname, clust_type = clust_type) 
+  i = 0
+  for (i in 1:length(classify_genind)) {
+    filename <- classify_plot_title_DAPC[[i]]
+    plot <- out_classify$DAPC$plot[[i]]
+    save_plot(plot = plot, filename = filename, out_dir = out_dir_classify_plot, filetype = args$filetype)
+  }
+  
+  # SAVE PCA OBJECTS
+  if(args$pca) {
+    # Save coord objects
+    clust_type <- "PCA"
+    map2(.x = out_classify$PCA$csv, .y = indnames_unknown, .f = save_classify_csvs, prefix = args$prefix, clust_type = clust_type, out_dir = out_dir_classify_csv)
+    
+    # Save plot objects
+    classify_plot_title_PCA <- purrr::map(.x = indnames_unknown, .f = get_classify_plotname, clust_type = clust_type) 
+    i = 0
+    for (i in 1:length(classify_genind)) {
+      filename <- classify_plot_title_PCA[[i]]
+      plot <- out_classify$PCAC$plot[[i]]
+      save_plot(plot = plot, filename = filename, out_dir = out_dir_classify_plot, filetype = args$filetype)
+    }
+  }
+  message(str_c("Output written to '", out_dir_classify, "'"))
+}
+
+message("Program end.")
