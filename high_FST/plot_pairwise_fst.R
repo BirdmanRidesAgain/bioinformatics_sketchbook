@@ -305,13 +305,15 @@ fst_tibble <- get_fst_tibble(fst, pop_levels)
 heatmap <- heatmap_fst_tibble(fst_tibble)
 
 # 2. VIOLIN PLOT
-violin_plot <- violin_fst_tibble(fst_tibble, pop_levels)
+#FIXME - add custom color option
+cols <- rainbow(length(pop_levels))
 
-  #custom_colors <- c(Yemen="#FFFF99", Israel="#B15928","South Iran"="#FB9A99", "North Iran"="#E31A1C", "West Uzbekistan"="#CAB2D6", "West Kazakhstan"="#6A3D9A", "Central Uzbekistan"="#A6CEE3", "Central Kazakhstan"="#1F78B4", "East Kazakhstan"="#B2DF8A", Mongolia="#33A02C")
-violin_fst_tibble(fst_tibble, pop_labels)
+violin_plot <- violin_fst_tibble(fst_tibble, pop_labels, cols)
+  # custom_colors <- c(Yemen="#FFFF99", Israel="#B15928","South Iran"="#FB9A99", "North Iran"="#E31A1C", "West Uzbekistan"="#CAB2D6", "West Kazakhstan"="#6A3D9A", "Central Uzbekistan"="#A6CEE3", "Central Kazakhstan"="#1F78B4", "East Kazakhstan"="#B2DF8A", Mongolia="#33A02C")
+  # violin_fst_tibble(fst_tibble, pop_labels, custom_colors)
 
 ggsave(
-  filename = str_c(getwd(),"violinplot"),
+  filename = str_c(getwd(),"/", output_prefix, "_violinplot.pdf"),
   plot = violin_plot,
   device = "pdf",
   width = 500,
@@ -320,7 +322,17 @@ ggsave(
   dpi = 300
 )
 
+ggsave(
+  filename = str_c(getwd(),"/", output_prefix, "_heatmap.pdf"),
+  plot = heatmap,
+  device = "pdf",
+  width = 500,
+  height = 250,
+  units = "mm",
+  dpi = 300
+)
+
 # 3. SAVE PLOTS
-save_plot(heatmap, getwd(), str_c(output_prefix, "_heatmap"))
-save_plot(violin_plot, getwd(), str_c(output_prefix, "_violin_plot"))
+#save_plot(heatmap, getwd(), str_c(output_prefix, "_heatmap"))
+#save_plot(violin_plot, getwd(), str_c(output_prefix, "_violin_plot"))
 message("Program terminating.")
