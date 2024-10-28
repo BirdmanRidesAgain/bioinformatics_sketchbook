@@ -141,7 +141,7 @@ lib_load <- function(libs) {
   message("All packages loaded\n")
 }
 
-libs <- c("tidyverse", "adegenet", "vcfR", "scales", "mclust") # list of libs
+libs <- c("tidyverse", "adegenet", "vcfR", "scales", "mclust", "ggrepel") # list of libs
 # Load libraries present in system
 check_installed_libs(libs)
 lib_load(libs)
@@ -312,24 +312,29 @@ get_plot_title <- function(prefix, plot_type = "DAPC") {
 plot_cluster_analysis <- function(coord, plot_title = plot_title, cols = cols) {
   # Function used to plot clustering analyses
   # Define theme and title variables:
-  label_theme <- theme(axis.title.x=element_text(size=14),
-                       axis.title.y=element_text(size=14),
-                       plot.title=element_text(hjust=0.5,
-                                               size=16,
-                                               face="bold"))
+  label_theme <- theme(axis.title=element_text(size=14, face = "bold"),
+                       axis.text = element_blank(),
+                       axis.ticks = element_blank(),
+                       plot.title = element_text(hjust=0.5, size=16, face="bold"),
+                       legend.position = "right", legend.title = element_text(size = 14, face = "bold"), legend.text = element_text(size = 12))
+  
   # Generate the plot:
-  plot <- ggplot(coord, aes(x = Axis1, y = Axis2)) +
+  plot <- coord %>%
+    ggplot(aes(x = Axis1, y = Axis2)) +
     # Set guidelines marking the X and Y intercepts
     geom_hline(yintercept = 0) + geom_vline(xintercept = 0) +
-    # Add points
-    geom_point(aes(fill = Pop), shape = 21, size = 3) +
+    # Add labels of various sorts
+    guides(fill=guide_legend(title="Population")) +
+    xlab("Axis 1") +
+    ylab("Axis 2") +
+    ggtitle(plot_title) +
+    # Add points with labels
+    geom_point(aes(fill = Pop), shape = 21, size = 5) +
+    geom_label_repel(aes(label = Ind)) +
     # Add coloring
     scale_fill_manual(values = cols) + scale_color_manual(values = cols) +
     # Add custom labels:
-    label_theme +
-    xlab("Axis 1") +
-    ylab("Axis 2") +
-    ggtitle(plot_title)
+    theme_classic() + label_theme
   
   return(plot) # returns clustered plot
 }
