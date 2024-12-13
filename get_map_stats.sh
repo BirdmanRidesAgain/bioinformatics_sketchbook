@@ -80,6 +80,7 @@ while read SAMPLE; do
         fi
     else
         #### FORMAT METRICS INTO TSV
+        BAMFILE=$(cat ${BAMQC} | grep "bam file" | awk '{print $NF}' ) # FIXME hey this is a problem
         REFSEQ=$(basename $REFSEQ)
         DEPTH=$(cat ${BAMQC} | grep "mean coverageData" | awk '{print $NF}' | sed s'/X//');
         DEPTH_STDEV=$(cat ${BAMQC} | grep "std coverageData" | awk '{print $NF}' | sed s'/X//');
@@ -88,7 +89,7 @@ while read SAMPLE; do
         PRIMARY_DUPLICATES=$(grep "rate" ${FASTP} | grep -v "q" | awk '{print $NF}');
 
         AVG_MAPQUAL=$(cat ${BAMQC} | grep "mean mapping quality" | awk '{print $NF}');
-        echo -e "${SAMPLE}_final.bam\t${REFSEQ}\t${DEPTH}\t${DEPTH_STDEV}\t${NUM_RDS}\t${PERCENT_PRIMARY_MAPPED}\t${PRIMARY_DUPLICATES}\t${AVG_MAPQUAL}" >> ${SAMPLE}/${SAMPLE}_mapping_stats.tsv;
+        echo -e "${BAMFILE}\t${REFSEQ}\t${DEPTH}\t${DEPTH_STDEV}\t${NUM_RDS}\t${PERCENT_PRIMARY_MAPPED}\t${PRIMARY_DUPLICATES}\t${AVG_MAPQUAL}" >> ${SAMPLE}/${SAMPLE}_mapping_stats.tsv;
     fi
 done < $SAMPLELIST
 
