@@ -1,7 +1,7 @@
 #!/bin/bash
 # Keiler Collier
 # 13 Dec 2024
-# get_map_stats.sg
+# get_map_stats.sh
 # This is a shell script designed to compile summary statistic results from many bamfiles.
 # It depends on the outputs from fastp and bamqc, which we get from the 'map.sh' script.
 # You are expected to supply a samplelist - this can be obtained with:
@@ -17,7 +17,7 @@
 #
 
 
-USAGE="Usage: get_map_stats.sh <samplelist> <refseq.fq> <output_prefix>"
+USAGE="Usage: get_map_stats.sh <output_prefix> <refseq.fq> <samplelist>"
 OUTPUTS="Outputs oneline summary tsv."
 if [ -z $1 ]
 then
@@ -31,9 +31,16 @@ eval "$(conda shell.bash hook)"
 
 ####################################################################################
 ### SETTING VARIABLES
-SAMPLELIST=$1
+OUTPUT_PREFIX=$1
 REFSEQ=$2
-OUTPUT_PREFIX=$3
+SAMPLELIST=$3
+
+if [ -z $SAMPLELIST ]
+then
+    echo "No samplelist provided. Generating."
+    find . -type d -maxdepth 1 -printf "%f\n" | grep -v "bamqc" | sort | tail -n +2 > samplelist
+    SAMPLELIST='samplelist'
+fi
 
 ########################################################################
 HEADER="bamfile\trefseq\tdepth\tdepth_stdev\tnum_reads\tpercent_mapped\tpercent_duplicate\tavg_mapqual"
@@ -67,5 +74,5 @@ done < $SAMPLELIST
 
 # Now cat all the information into the master file
 for i in */*_mapping_stats.tsv; do
-    head $i -n +2 >> ${OUTPUT_PREFIX}_mapping_stats.tsv;
+    tail $i -n +2 >> ${OUTPUT_PREFIX}_mapping_stats.tsv;
 done
