@@ -4,8 +4,14 @@
 # get_map_stats.sh
 # This is a shell script designed to compile summary statistic results from many bamfiles.
 # It depends on the outputs from fastp and bamqc, which we get from the 'map.sh' script.
+#
 # You are expected to supply a samplelist - this can be obtained with:
 #   "find . -type d -maxdepth 1 -printf "%f\n" | grep -v "bamqc" | sort | tail -n +2 > samplelist"
+# 
+# The samplelist should consist of one individual per line:
+# ind1
+# ind2
+# ind3
 #
 # The following directory structure is expected:
 #   ${SAMPLE}
@@ -14,10 +20,11 @@
 #           genome_results.txt
 #       fastq-files
 #           fastp.json
+#           ${SAMPLE}*.fq.gz
 #
 
 
-USAGE="Usage: get_map_stats.sh <output_prefix> <refseq.fq> <samplelist>"
+USAGE="Usage: get_map_stats.sh <output_prefix> <refseq.fq> <samplelist>."
 OUTPUTS="Outputs oneline summary tsv."
 if [ -z $1 ]
 then
@@ -26,27 +33,23 @@ then
 fi
 
 ####################################################################################
-### SOURCING CONDA
-eval "$(conda shell.bash hook)"
-
-####################################################################################
 ### SETTING VARIABLES
 OUTPUT_PREFIX=$1
 REFSEQ=$2
 SAMPLELIST=$3
 
+# Get a list of all the samples, if it was not provided as an argument
 if [ -z $SAMPLELIST ]
 then
-    echo "No samplelist provided. Generating."
-    find . -type d -maxdepth 1 -printf "%f\n" | grep -v "bamqc" | sort | tail -n +2 > samplelist
-    SAMPLELIST='samplelist'
+    echo -e "No samplelist provided. Generating.\n"
+    find . -maxdepth 1 -type d  -printf "%f\n" | grep -v "bamqc" | sort | tail -n +2 > ${OUTPUT_PREFIX}_samplelist.txt
+    SAMPLELIST=${OUTPUT_PREFIX}_samplelist.txt
 fi
 
 ########################################################################
 HEADER="bamfile\trefseq\tdepth\tdepth_stdev\tnum_reads\tpercent_mapped\tpercent_duplicate\tavg_mapqual"
 # Output header for our summary file
 echo -e $HEADER > ${OUTPUT_PREFIX}_mapping_stats.tsv;
-
 
 while read SAMPLE; do
     #### GETTING METRICS ON THE FINAL BAM:
