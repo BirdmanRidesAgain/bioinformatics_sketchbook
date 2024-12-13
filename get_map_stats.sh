@@ -55,9 +55,20 @@ while read SAMPLE; do
     # Check if the statfiles exist
     BAMQC=${SAMPLE}/${SAMPLE}_bamqc/genome_results.txt;
     FASTP=${SAMPLE}/fastq-files/fastp.json
+
+    # figure out which one (or both) were missing
     if [ ! -f $BAMQC ] || [ ! -f $FASTP ]
     then
-        echo -e "${SAMPLE}\tqualstats_error" >> ${SAMPLE}/${SAMPLE}_mapping_stats.tsv;
+        echo -en "${SAMPLE} qualstats_error\t" >> ${SAMPLE}/${SAMPLE}_mapping_stats.tsv;
+        if [ -f $BAMQC ]
+        then
+            echo -e "Fastp missing" >> ${SAMPLE}/${SAMPLE}_mapping_stats.tsv;
+        elif [ -f $FASTP ]
+        then
+            echo -e "Bamqc missing" >> ${SAMPLE}/${SAMPLE}_mapping_stats.tsv;
+        else
+            echo -e "Both bamqc and fastp missing" >> ${SAMPLE}/${SAMPLE}_mapping_stats.tsv;
+        fi
     else
         #### FORMAT METRICS INTO TSV
         REFSEQ=$(basename $REFSEQ)
