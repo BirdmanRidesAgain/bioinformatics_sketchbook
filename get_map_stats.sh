@@ -38,6 +38,12 @@ OUTPUT_PREFIX=$1
 REFSEQ=$2
 SAMPLELIST=$3
 
+if [ -z $REFSEQ]
+then
+    echo "No refseq supplied."
+    exit 1
+fi
+
 # Get a list of all the samples, if it was not provided as an argument
 if [ -z $SAMPLELIST ]
 then
