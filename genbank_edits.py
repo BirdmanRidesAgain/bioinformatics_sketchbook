@@ -1,4 +1,4 @@
-#!/opt/anaconda3/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # Import libs
@@ -40,29 +40,28 @@ def splice_out(record, edit):
     Function takes a seq. record object and a tuple of integers, where the first value is lower than the record..
     It removes specified regions of a sequence and returns the fixed record.
     """
-    length_before_trim=len(record.seq)
+    expected_length=(int(len(record.seq)) - (edit['span_end'] - edit['span_start']))
 
     first_half_seq=record.seq[0:edit['span_start'].iloc[0]]
     second_half_seq=record.seq[edit['span_end'].iloc[0]:edit['length'].iloc[0]]
     record.seq=first_half_seq+second_half_seq
     
     length_after_trim=len(record.seq)
-    
-    print(length_before_trim,length_after_trim)
-    assert (length_before_trim > length_after_trim), f"Trimming failed for {record.name}"
-
-    # FIXME - you should calculate the expected length and then work off of that.
-    #expected_length=(int(len(record.seq)) - (edit['span_end'] - edit['span_start']))
-    #print(int(len(record.seq)), expected_length)
-    #assert (int(len(record.seq)) == int(expected_length)), f"Trimming failed for {record.name}."
+    assert (int(expected_length.iloc[0])==length_after_trim), f"Trimming failed for {record.name}.\n\tExpected length: {int(expected_length)}\n\tActual length: {length_after_trim}"
 
     return(record)
+
+def make_fa_name(species, suffix):
+    '''
+    Makes a name from the species and file suffix.
+    '''
+    return(f"{species.replace(' ','_')}_{suffix}")
 
 
 def main():
     # 1. Use argparse to read in the path to the args
     parser = ArgumentParser(description="Takes in a fa and a Genbank-provided contamination file, and removes the specified contaminants.")
-    parser.add_argument('-f','--fasta', help='Path to fasta file. YOu are expected to use the cleaned one GenBank gives you.', type=str, required=True)
+    parser.add_argument('-f','--fasta', help='Path to fasta file. You are expected to use the cleaned one GenBank gives you (eg,\'houbaraONT_assembly-racon-haplotigs00000000.fsa\').', type=str, required=True)
     parser.add_argument('-t', '--tsv', help='TSV of all the edits GenBank needs', type=str, required=True)
     parser.add_argument('-s', '--species', help='The species your\'e editing. Needed because GenBank alters the contig names.', type=str, required=True)
     args = parser.parse_args()
@@ -86,13 +85,9 @@ def main():
     # NOTE: this code assumes there is only one edit needed per contig, which is not guaranteed for all cases
     # Fix it later if needed
     counter=0
-    print(list(edits['ctg_name']))
 
     for i in fa:
-        if (i.name=='contig_4330'):
-            print(f"oldcontigname: {i.name}, newcontigname: {'lcl|'+edits['ctg_name']}")
         if (i.name in list('lcl|'+edits['ctg_name'])):
-        #if any(i.name in s for s in list(edits['ctg_name'])):
             edit=edits[edits['ctg_name']==i.name[4:]]
             i=splice_out(i, edit)
             counter=counter+1
@@ -104,7 +99,7 @@ def main():
         print(f"{counter} trims were made; {str(len(edits))} were expected.")
 
     # now write the fasta
-    with open(args.species+'_GenBank_edits.fa', "w") as output_handle:
+    with open(make_fa_name(args.species,'GenBank_edits.fa'), "w") as output_handle:
         SeqIO.write(fa, output_handle, 'fasta')
     print("done")
     return 0
